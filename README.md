@@ -9,7 +9,7 @@ Pick what shows, group it into **modes**, and switch modes per session — all f
 ![macOS · Linux](https://img.shields.io/badge/macOS%20%C2%B7%20Linux-555)
 ![Built with bash](https://img.shields.io/badge/built%20with-bash-4EAA25?logo=gnubash&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/deps-jq-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 </div>
 
@@ -42,7 +42,7 @@ Everything is colour-coded, and most segments stay hidden until they're relevant
 - [Install](#install) · [What it shows](#what-it-shows)
 - [Modes](#modes) — [`slconfig`](#slconfig--the-default-for-new-sessions) · [`/mode`](#mode--per-session) · [the picker](#the-mode-picker)
 - [Element reference](#element-reference) · [Customising](#customising)
-- [How it works](#how-it-works) · [Updating](#updating) · [Uninstall](#uninstall) · [Requirements](#requirements) · [License](#license)
+- [How it works](#how-it-works) · [Updating](#updating) · [Uninstall](#uninstall) · [Requirements](#requirements) · [Security](#security) · [License](#license)
 
 ---
 
@@ -238,6 +238,10 @@ Remove the symlinks (`~/.claude/statusline-*.sh`), the `/mode` command (`~/.clau
 - `bash`, `jq`, `git`, and standard `awk`/`date` (all preinstalled on macOS/Linux except `jq`)
 - A truecolor terminal for exact colours (optional — degrades gracefully)
 
+## Security
+
+Runs entirely in user space (no `sudo`), reads-not-executes the JSON Claude Code pipes in, and updates fast-forward-only over HTTPS pinned to this repo. Found something? Please report it privately — see the [security policy](SECURITY.md).
+
 ## License
 
-[MIT](LICENSE) — © 2026 Lucid06-K.
+[Apache License 2.0](LICENSE) — © 2026 Lucid06-K (see [NOTICE](NOTICE)).
