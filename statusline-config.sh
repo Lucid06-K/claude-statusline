@@ -10,6 +10,7 @@ CONF="${HOME}/.claude/statusline.conf"
 MODES="${HOME}/.claude/statusline.modes"
 PICKER="${HOME}/.claude/statusline.picker"
 SL="${HOME}/.claude/statusline-command.sh"
+UPDATE="${HOME}/.claude/statusline-update.sh"
 
 ESC=$'\033'; R="${ESC}[0m"; B="${ESC}[1m"; DIM="${ESC}[2m"; REV="${ESC}[7m"
 GRN="${ESC}[92m"; YEL="${ESC}[93m"; CYN="${ESC}[96m"; MAG="${ESC}[95m"; RED="${ESC}[91m"
@@ -295,6 +296,36 @@ edit_save() {            # $1 = oldname; returns 0 to close editor
   return 0
 }
 
+# ---------- updates (git fast-forward; mirrors dsort's updater) ----------
+update_menu() {
+  local focus=0 key rows=3 msg=""
+  printf '%s' "${ESC}[?25l"
+  while :; do
+    local auto="off"; [ -f "${HOME}/.claude/statusline.auto-update" ] && auto="${GRN}on${R}"
+    printf '%s' "${ESC}[H${ESC}[2J"
+    printf '\n  %sUpdates%s\n' "$B" "$R"
+    printf '  %s%s%s\n' "$DIM" "$(bash "$UPDATE" --status 2>/dev/null | head -1)" "$R"
+    [ -n "$msg" ] && printf '  %s%s%s\n' "$GRN" "$msg" "$R"
+    printf '  %s\n' "$SEP"
+    row_action "Check for updates / update now" "$([ "$focus" -eq 0 ] && echo 1 || echo 0)"
+    row_action "Auto-update: ${auto} (toggle)"   "$([ "$focus" -eq 1 ] && echo 1 || echo 0)"
+    row_action "← Back"                          "$([ "$focus" -eq 2 ] && echo 1 || echo 0)"
+    printf '\n  %s↑/↓ move · enter select · esc back%s\n' "$DIM" "$R"
+    key=$(read_key)
+    case "$key" in
+      up|k)    focus=$(( (focus+rows-1)%rows )) ;;
+      down|j)  focus=$(( (focus+1)%rows )) ;;
+      esc|b|B) return ;;
+      "")  case "$focus" in
+             0) printf '%s\n\n' "${ESC}[?25h"; bash "$UPDATE"; anykey; printf '%s' "${ESC}[?25l" ;;
+             1) if [ -f "${HOME}/.claude/statusline.auto-update" ]; then bash "$UPDATE" --auto off >/dev/null 2>&1; msg="auto-update turned off"
+                else bash "$UPDATE" --auto on >/dev/null 2>&1; msg="auto-update on — daily background check"; fi ;;
+             2) return ;;
+           esac ;;
+    esac
+  done
+}
+
 # ---------- main menu: pick the default mode for new sessions ----------
 finish() {
   printf '%s' "${ESC}[?25h${ESC}[H${ESC}[2J"
@@ -341,7 +372,7 @@ main_menu() {
   printf '%s' "${ESC}[?25l"
   while :; do
     read_default_mode; load_modes
-    M=${#mode_names[@]}; nrows=$((M+3))            # modes + Configure picker + Create + Quit
+    M=${#mode_names[@]}; nrows=$((M+4))            # modes + Configure picker + Updates + Create + Quit
     [ "$focus" -ge "$nrows" ] && focus=$((nrows-1)); [ "$focus" -lt 0 ] && focus=0
     printf '%s' "${ESC}[H${ESC}[2J"
     printf '\n  %sClaude Code status line — Modes%s\n' "$B" "$R"
@@ -360,25 +391,28 @@ main_menu() {
     done
     printf '  %s\n' "$SEP"
     row_action "Configure /mode picker ▸" "$([ "$focus" -eq "$M" ] && echo 1 || echo 0)"
-    row_action "+ Create new mode"        "$([ "$focus" -eq $((M+1)) ] && echo 1 || echo 0)"
-    row_action "${GRN}Quit${R}"           "$([ "$focus" -eq $((M+2)) ] && echo 1 || echo 0)"
+    row_action "Updates ▸"                "$([ "$focus" -eq $((M+1)) ] && echo 1 || echo 0)"
+    row_action "+ Create new mode"        "$([ "$focus" -eq $((M+2)) ] && echo 1 || echo 0)"
+    row_action "${GRN}Quit${R}"           "$([ "$focus" -eq $((M+3)) ] && echo 1 || echo 0)"
     local pv=""; [ "$focus" -lt "$M" ] && pv="$(preview_spec "${mode_specs[$focus]}")"
     printf '  %s\n' "$SEP"
     printf '  %srender%s  %s\n' "$DIM" "$R" "$pv"
-    printf '\n  %s↑/↓ move · enter set default · g /mode picker · e edit · c new · d delete · p preview · q quit%s\n' "$DIM" "$R"
+    printf '\n  %s↑/↓ move · enter set default · g picker · u updates · e edit · c new · d delete · p preview · q quit%s\n' "$DIM" "$R"
     key=$(read_key)
     case "$key" in
       up|k)    focus=$(( (focus+nrows-1)%nrows )); MSG="" ;;
       down|j)  focus=$(( (focus+1)%nrows )); MSG="" ;;
       q|Q|esc) finish ;;
       g|G)     picker_menu ;;
+      u|U)     update_menu ;;
       e|E)     [ "$focus" -lt "$M" ] && edit_mode "$focus" ;;
       c|C)     edit_mode "" ;;
       d|D)     if [ "$focus" -lt "$M" ]; then local dn="${mode_names[$focus]}"; delete_mode "$focus"; MSG="deleted '$dn'"; fi ;;
       p|P)     if [ "$focus" -lt "$M" ]; then printf '\n  '; preview_spec "${mode_specs[$focus]}"; anykey; fi ;;
       "")      if   [ "$focus" -lt "$M" ]; then set_default "$focus"; MSG="★ '${CURRENT_MODE}' is now the default for new sessions"
                elif [ "$focus" -eq "$M" ]; then picker_menu
-               elif [ "$focus" -eq $((M+1)) ]; then edit_mode ""
+               elif [ "$focus" -eq $((M+1)) ]; then update_menu
+               elif [ "$focus" -eq $((M+2)) ]; then edit_mode ""
                else finish; fi ;;
     esac
   done

@@ -14,7 +14,7 @@ mkdir -p "$DEST" "$DEST/commands"
 command -v jq >/dev/null 2>&1 || { echo "error: 'jq' is required (brew install jq / apt install jq)"; exit 1; }
 
 # 1) scripts -> symlinks
-for f in statusline-command.sh statusline-config.sh statusline-mode.sh; do
+for f in statusline-command.sh statusline-config.sh statusline-mode.sh statusline-update.sh; do
   ln -sf "$REPO/$f" "$DEST/$f"
   echo "✓ linked  ~/.claude/$f"
 done

@@ -73,6 +73,17 @@ if [ -z "${SL_CONF:-}" ]; then
 fi
 [ -f "$SL_CONF" ] && . "$SL_CONF"
 
+# --- Daily auto-update (opt-in: ~/.claude/statusline.auto-update) ---
+# Cheap throttle (one stamp read + date) every render; once a day it detaches a
+# background fast-forward pull so it never blocks or slows the status line.
+if [ -f "${HOME}/.claude/statusline.auto-update" ]; then
+  _ust="${HOME}/.claude/statusline.update-check"; _utoday=$(date +%Y-%m-%d)
+  if [ "$(cat "$_ust" 2>/dev/null)" != "$_utoday" ]; then
+    printf '%s' "$_utoday" > "$_ust" 2>/dev/null
+    ( bash "${HOME}/.claude/statusline-update.sh" --background >/dev/null 2>&1 & ) >/dev/null 2>&1
+  fi
+fi
+
 # --- Segment: Directory (folder glyph + smart path) ---
 # Home -> ~ ; directly under home -> ~/name ; else last two path segments.
 loc="${cwd:-$(pwd)}"
