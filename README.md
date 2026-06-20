@@ -37,25 +37,25 @@ session reads short:
 
 ## Install
 
+Requires `jq` and [Claude Code](https://claude.com/claude-code). One command:
+
 ```sh
 git clone https://github.com/Lucid06-K/claude-statusline.git
-cd claude-statusline
-./install.sh
+cd claude-statusline && ./install.sh
 ```
 
-`install.sh` symlinks the scripts into `~/.claude/` and installs the `/mode` command. Then:
+`install.sh` does everything (idempotent; backs up before changing anything):
+- symlinks the scripts into `~/.claude/` (this repo stays the source of truth — `git pull` to update)
+- installs the `/mode` slash command
+- sets `.statusLine` in `~/.claude/settings.json`
+- adds the `slconfig` alias to your `~/.zshrc` (or `~/.bashrc`)
 
-1. **Wire the status line** — in `~/.claude/settings.json`:
-   ```json
-   "statusLine": { "type": "command", "command": "bash ~/.claude/statusline-command.sh" }
-   ```
-2. **Add the configurator alias** to your shell rc (e.g. `~/.zshrc`):
-   ```sh
-   alias slconfig="bash ~/.claude/statusline-config.sh"
-   ```
+Then restart Claude Code, run `source ~/.zshrc`, and you're set. A truecolor terminal
+(iTerm2, Ghostty, Warp, VS Code) gives exact colors; others fall back to 256/16-color automatically.
 
-A truecolor terminal (iTerm2, Ghostty, Warp, VS Code) gives exact colors; others fall back to
-256/16-color automatically.
+### Uninstall
+Remove the symlinks (`~/.claude/statusline-*.sh`), the `/mode` command (`~/.claude/commands/mode.md`),
+the `statusLine` block in `~/.claude/settings.json`, and the `slconfig` alias.
 
 ## Modes
 
