@@ -12,7 +12,7 @@ MODES="${HOME}/.claude/statusline.modes"
 GLOBAL="${HOME}/.claude/statusline.conf"
 SESSDIR="${HOME}/.claude/statusline.sessions"
 PICKER="${HOME}/.claude/statusline.picker"   # modes chosen (in slconfig) to show in the /mode picker
-KEYS="SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK"
+KEYS="SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK SL_OUTPUTSTYLE SL_TOKENS SL_THINKING"
 sid="${CLAUDE_CODE_SESSION_ID:-}"
 
 list_modes() { [ -f "$MODES" ] && grep -vE '^[[:space:]]*#' "$MODES" | awk -F'|' 'NF>=2{printf "  %-10s %s\n",$1,$2}'; }

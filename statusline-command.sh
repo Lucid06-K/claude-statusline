@@ -18,6 +18,10 @@ rl5_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty
 rl5_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
 rl7_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
 rl7_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
+output_style=$(echo "$input" | jq -r '.output_style.name // empty')
+tok_in=$(echo "$input" | jq -r '.context_window.total_input_tokens // empty')
+tok_out=$(echo "$input" | jq -r '.context_window.total_output_tokens // empty')
+thinking_on=$(echo "$input" | jq -r '.thinking.enabled')   # NOT `// empty` — jq's // treats false as empty
 
 # --- Color support ---
 # Truecolor if the terminal advertises it (iTerm2/Ghostty/Warp/VSCode set COLORTERM);
@@ -60,6 +64,7 @@ rainbow_text() {
 SL_DIRECTORY=1; SL_GIT=1; SL_MODEL=1; SL_FASTMODE=1; SL_EFFORT=1
 SL_CONTEXT=1; SL_CONTEXT_WARN=1; SL_RATELIMIT_5H=1; SL_RATELIMIT_7D=1
 SL_BURNRATE=1; SL_COST=1; SL_COST_COLOR=1; SL_ELAPSED=1; SL_CLOCK=1
+SL_OUTPUTSTYLE=1; SL_TOKENS=1; SL_THINKING=1
 # Config precedence: explicit $SL_CONF (preview) > per-session mode (set via /mode) > global default.
 if [ -z "${SL_CONF:-}" ]; then
   SL_CONF="${HOME}/.claude/statusline.conf"
@@ -129,6 +134,23 @@ if [ -n "$effort" ]; then
     *)      lvl="$effort" ;;
   esac
   effort_seg="${lvl}"
+fi
+
+# --- Segment: Thinking off (only shown when extended thinking is disabled) ---
+thinking_seg=""
+[ "$thinking_on" = "false" ] && thinking_seg="${ESC}[93m🧠⨯${RESET}"
+
+# --- Segment: Output style (only when not the default style) ---
+style_seg=""
+if [ -n "$output_style" ] && [ "$output_style" != "default" ] && [ "$output_style" != "null" ]; then
+  style_seg="${ESC}[96m✎ ${output_style}${RESET}"
+fi
+
+# --- Segment: Tokens this session (↓ input  ↑ output) ---
+hk() { awk -v n="$1" 'BEGIN{ if(n>=1e6) printf "%.1fM", n/1e6; else if(n>=1e3) printf "%.0fk", n/1e3; else printf "%d", n }'; }
+tokens_seg=""
+if [ -n "$tok_in" ] && [ "$tok_in" != "null" ]; then
+  tokens_seg="${ESC}[90m↓${RESET}$(hk "$tok_in") ${ESC}[90m↑${RESET}$(hk "${tok_out:-0}")"
 fi
 
 # --- Helper: colored mini progress bar (green -> yellow -> red) ---
@@ -255,8 +277,11 @@ parts=()
 [ "$SL_DIRECTORY"    = 1 ]                          && parts+=("${dir_seg}")
 [ "$SL_GIT"          = 1 ] && [ -n "$git_seg"     ] && parts+=("${git_seg}")
 [ "$SL_MODEL"        = 1 ]                          && parts+=("${model_seg}")
+[ "$SL_THINKING"     = 1 ] && [ -n "$thinking_seg" ] && parts+=("${thinking_seg}")
 [ "$SL_EFFORT"       = 1 ] && [ -n "$effort_seg"  ] && parts+=("${effort_seg}")
+[ "$SL_OUTPUTSTYLE"  = 1 ] && [ -n "$style_seg"   ] && parts+=("${style_seg}")
 [ "$SL_CONTEXT"      = 1 ] && [ -n "$ctx_seg"     ] && parts+=("${ctx_seg}")
+[ "$SL_TOKENS"       = 1 ] && [ -n "$tokens_seg"  ] && parts+=("${tokens_seg}")
 [ "$SL_RATELIMIT_5H" = 1 ] && [ -n "$rl_seg"      ] && parts+=("${rl_seg}")
 [ "$SL_RATELIMIT_7D" = 1 ] && [ -n "$rl7_seg"     ] && parts+=("${rl7_seg}")
 [ "$SL_BURNRATE"     = 1 ] && [ -n "$burn_seg"    ] && parts+=("${burn_seg}")

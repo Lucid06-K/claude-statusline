@@ -22,9 +22,12 @@ session reads short:
 | **Git status** | Branch, `*` when dirty, `⇡N`/`⇣N` ahead of / behind upstream |
 | **Model name** | Active model in Claude's brand orange |
 | **Fast-mode flag** | `⚡` while `/fast` is active |
+| **Thinking off** | `🧠⨯` only when extended thinking is disabled |
 | **Reasoning effort** | `low/medium/high/xhigh/max`, colored to match Claude Code's effort selector |
+| **Output style** | `✎ <name>` when the output style isn't the default |
 | **Context meter** | Context-window bar + %, green → yellow → red |
 | **Context warning** | `⚠` once context is near auto-compact (≥85%) |
+| **Tokens** | `↓in ↑out` tokens this session (abbreviated k/M) |
 | **5-hour limit** | Rolling 5-hour usage meter; reset countdown at ≥80% |
 | **7-day limit** | Rolling 7-day usage meter; appears at ≥50% |
 | **Burn rate** | Spend velocity, `$/active hour` |

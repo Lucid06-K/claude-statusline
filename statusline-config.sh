@@ -32,10 +32,12 @@ trap cleanup EXIT INT TERM
 
 # key | label | one-line summary | full explanation
 keys=(   SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN \
-         SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK )
+         SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK \
+         SL_OUTPUTSTYLE SL_TOKENS SL_THINKING )
 labels=( "Directory" "Git status" "Model name" "Fast-mode flag" "Reasoning effort" \
          "Context meter" "Context warning" "5-hour limit" "7-day limit" "Burn rate" \
-         "Session cost" "Cost color" "Session timer" "Clock" )
+         "Session cost" "Cost color" "Session timer" "Clock" \
+         "Output style" "Tokens" "Thinking off" )
 shorts=( "current folder (📁 ~/…)" \
          "branch, dirty *, ahead/behind ⇡⇣" \
          "model name in Claude orange" \
@@ -49,7 +51,10 @@ shorts=( "current folder (📁 ~/…)" \
          "total \$ spent this session" \
          "tint the \$ as spend climbs" \
          "⏱ time since session start" \
-         "current time of day" )
+         "current time of day" \
+         "✎ active output style (not default)" \
+         "↓in ↑out tokens this session" \
+         "🧠⨯ when extended thinking is off" )
 longs=(  "The working directory. Home shows as ~, a folder directly under home as ~/name, and anything deeper as the last two path segments (e.g. Projects/petpak)." \
          "When inside a git repo: the branch, a * if there are uncommitted changes, and ⇡N/⇣N for commits ahead of / behind upstream. Hidden outside repos; turning it off also skips the git calls (slightly faster)." \
          "The active model's display name (e.g. Opus 4.8 (1M context)) in Claude's brand orange." \
@@ -63,7 +68,10 @@ longs=(  "The working directory. Home shows as ~, a folder directly under home a
          "Total dollars spent in this session so far." \
          "Tints the cost figure with spend: dim under \$2, yellow at ≥\$2, red at ≥\$5. Off = plain text." \
          "A ⏱ timer counting wall-clock time since the session began (via a small marker file, auto-cleaned after 2 days)." \
-         "The current clock time (HH:MM)." )
+         "The current clock time (HH:MM)." \
+         "The active output style (e.g. Explanatory, Learning) shown with a ✎. Hidden when it's the default style." \
+         "Tokens used this session — ↓ total input and ↑ total output, abbreviated (k/M)." \
+         "A 🧠⨯ shown only when extended thinking is turned off (it's normally on)." )
 
 n=${#keys[@]}
 tmp_state=(); ED=(); CURRENT_MODE=""; EDNAME=""; EDDESC=""
@@ -85,6 +93,9 @@ prev[10]="\$6.40"
 prev[11]="${RED}\$6.40${R}"
 prev[12]="⏱ 12m"
 prev[13]="19:02"
+prev[14]="${CYN}✎ Explanatory${R}"
+prev[15]="${DIM}↓${R}37k ${DIM}↑${R}264"
+prev[16]="${YEL}🧠⨯${R}"
 
 # ---------- one keypress -> token (up/down/esc / "" for enter / literal char) ----------
 read_key() {
