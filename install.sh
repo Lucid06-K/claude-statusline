@@ -19,8 +19,8 @@ for f in statusline-command.sh statusline-config.sh statusline-mode.sh statuslin
   echo "✓ linked  ~/.claude/$f"
 done
 
-# 2) /mode command
-cp "$REPO/mode.md" "$DEST/commands/mode.md"
+# 2) /mode command (symlink so `git pull` keeps it current)
+ln -sf "$REPO/mode.md" "$DEST/commands/mode.md"
 echo "✓ installed /mode command"
 
 # 3) status line in settings.json (back up, then set .statusLine)
