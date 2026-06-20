@@ -189,7 +189,7 @@ if [ -n "$rl5_pct" ]; then
   rp=$(printf "%.0f" "$rl5_pct" 2>/dev/null)
   rp=$(rl_synced "$rp" "$rl5_reset" "5h")
   rl_seg="5h $(mk_bar "$rp" 6) ${rp}%"
-  [ -n "$rl5_reset" ] && [ "$rl5_reset" != "null" ] && rl_seg="${rl_seg} ${ESC}[90m⟳$(fmt_eta "$rl5_reset")${RESET}"
+  [ -n "$rl5_reset" ] && [ "$rl5_reset" != "null" ] && rl_seg="${rl_seg} ${ESC}[90m⟳ $(fmt_eta "$rl5_reset")${RESET}"
 fi
 
 # --- Segment: 7-day rate limit (synced; only surfaces once it's a real constraint) ---
@@ -199,7 +199,7 @@ if [ -n "$rl7_pct" ]; then
   rp7=$(rl_synced "$rp7" "$rl7_reset" "7d")
   if [ "$rp7" -ge 50 ] 2>/dev/null; then
     rl7_seg="7d $(mk_bar "$rp7" 6) ${rp7}%"
-    [ -n "$rl7_reset" ] && [ "$rl7_reset" != "null" ] && rl7_seg="${rl7_seg} ${ESC}[90m⟳$(fmt_eta "$rl7_reset")${RESET}"
+    [ -n "$rl7_reset" ] && [ "$rl7_reset" != "null" ] && rl7_seg="${rl7_seg} ${ESC}[90m⟳ $(fmt_eta "$rl7_reset")${RESET}"
   fi
 fi
 

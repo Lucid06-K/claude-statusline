@@ -10,8 +10,20 @@ MODES="${HOME}/.claude/statusline.modes"
 SL="${HOME}/.claude/statusline-command.sh"
 
 ESC=$'\033'; R="${ESC}[0m"; B="${ESC}[1m"; DIM="${ESC}[2m"; REV="${ESC}[7m"
-GRN="${ESC}[92m"; YEL="${ESC}[93m"; CYN="${ESC}[96m"; MAG="${ESC}[95m"
+GRN="${ESC}[92m"; YEL="${ESC}[93m"; CYN="${ESC}[96m"; MAG="${ESC}[95m"; RED="${ESC}[91m"
+ORANGE="${ESC}[38;2;215;119;87m"
 SEP="${DIM}──────────────────────────────────────────────────────────${R}"
+
+# mini coloured bar (matches the status line's mk_bar) — used by the per-element previews
+mini_bar() {
+  local pct=$1 width=${2:-6} filled empty col f="" e="" i
+  filled=$(( (pct*width+50)/100 )); [ "$filled" -gt "$width" ] && filled=$width; [ "$filled" -lt 0 ] && filled=0
+  empty=$(( width-filled ))
+  if [ "$pct" -ge 80 ]; then col=91; elif [ "$pct" -ge 50 ]; then col=93; else col=92; fi
+  for ((i=0;i<filled;i++)); do f+="█"; done
+  for ((i=0;i<empty;i++)); do e+="░"; done
+  printf '%s[90m▕%s[%dm%s%s[90m%s▏%s' "$ESC" "$ESC" "$col" "$f" "$ESC" "$e" "$R"
+}
 
 cleanup() { printf '%s' "${ESC}[?25h"; }   # always restore the cursor
 trap cleanup EXIT INT TERM
@@ -54,6 +66,23 @@ longs=(  "The working directory. Home shows as ~, a folder directly under home a
 n=${#keys[@]}
 state=(); tmp_state=(); ED=(); CURRENT_MODE=""; EDNAME=""; EDDESC=""
 mode_names=(); mode_descs=(); mode_specs=()
+
+# Per-element example renders — shown for whichever option the selector sits on.
+prev=()
+prev[0]="📁 Projects/petpak"
+prev[1]="feat/vet ${GRN}⇡2${R}"
+prev[2]="${ORANGE}Opus 4.8${R}"
+prev[3]="${ORANGE}Opus 4.8${R} ${YEL}⚡${R}"
+prev[4]="${MAG}xhigh${R}"
+prev[5]="$(mini_bar 42 10) 42%"
+prev[6]="$(mini_bar 88 10) 88% ${RED}⚠${R}"
+prev[7]="5h $(mini_bar 62 6) 62% ${DIM}⟳ 2h35m${R}"
+prev[8]="7d $(mini_bar 72 6) 72%"
+prev[9]="\$11.20/h"
+prev[10]="\$6.40"
+prev[11]="${RED}\$6.40${R}"
+prev[12]="⏱ 12m"
+prev[13]="19:02"
 
 # ---------- one keypress -> token (up/down/esc / "" for enter / literal char) ----------
 read_key() {
@@ -152,12 +181,13 @@ mode_status() {
 }
 
 # ---------- preview ----------
-render_sample() {
-  local sid="preview-$$" r5 json; r5=$(( $(date +%s) + 2820 ))
+render_sample() {                # $1 = optional conf path. Runs in an isolated TMPDIR so it
+  local sid="preview-$$" r5 json td  #     never touches the real session timer / rate-limit cache.
+  r5=$(( $(date +%s) + 2820 )); td="$(mktemp -d 2>/dev/null)"
   json=$(printf '{"session_id":"%s","cwd":"%s","effort":{"level":"xhigh"},"model":{"display_name":"Opus 4.8 (1M context)"},"workspace":{"current_dir":"%s"},"context_window":{"used_percentage":88},"fast_mode":true,"cost":{"total_cost_usd":6.40,"total_duration_ms":720000},"rate_limits":{"five_hour":{"used_percentage":100,"resets_at":%s},"seven_day":{"used_percentage":72,"resets_at":%s}}}' "$sid" "$HOME" "$HOME" "$r5" "$r5")
-  if [ -n "$1" ]; then printf '%s' "$json" | SL_CONF="$1" COLORTERM="${COLORTERM:-truecolor}" bash "$SL"
-  else                 printf '%s' "$json" |               COLORTERM="${COLORTERM:-truecolor}" bash "$SL"; fi
-  rm -f "${TMPDIR:-/tmp}/cc-statusline/${sid}.start" 2>/dev/null
+  if [ -n "$1" ]; then printf '%s' "$json" | TMPDIR="$td" SL_CONF="$1" COLORTERM="${COLORTERM:-truecolor}" bash "$SL"
+  else                 printf '%s' "$json" | TMPDIR="$td"               COLORTERM="${COLORTERM:-truecolor}" bash "$SL"; fi
+  rm -rf "$td" 2>/dev/null
 }
 do_preview() { printf '\n  %sPreview%s %s(sample data: busy session)%s\n  ' "$B" "$R" "$DIM" "$R"; render_sample "$1"; printf '\n'; }
 
@@ -200,6 +230,11 @@ edit_mode() {            # $1 = index to edit, or "" to create new
     row_action "Edit description" "$([ "$focus" -eq $((n+1)) ] && echo 1 || echo 0)"
     row_action "${GRN}Save mode${R}" "$([ "$focus" -eq $((n+2)) ] && echo 1 || echo 0)"
     row_action "Cancel"           "$([ "$focus" -eq $((n+3)) ] && echo 1 || echo 0)"
+    local pv tc2
+    if [ "$focus" -lt "$n" ]; then pv="${prev[$focus]}"
+    else tc2="$(mktemp)"; for ((i=0;i<n;i++)); do echo "${keys[$i]}=${ED[$i]}"; done > "$tc2"; pv="$(render_sample "$tc2")"; rm -f "$tc2"; fi
+    printf '  %s\n' "$SEP"
+    printf '  %srender%s  %s\n' "$DIM" "$R" "$pv"
     printf '\n  %s↑/↓ move · enter toggle/select · r rename · t desc · p preview · s save · esc cancel%s\n' "$DIM" "$R"
     key=$(read_key)
     case "$key" in
@@ -304,6 +339,9 @@ main_menu() {
     row_action "Turn all on"       "$([ "$focus" -eq $((n+1)) ] && echo 1 || echo 0)"
     row_action "Turn all off"      "$([ "$focus" -eq $((n+2)) ] && echo 1 || echo 0)"
     row_action "${GRN}Save & quit${R}" "$([ "$focus" -eq $((n+3)) ] && echo 1 || echo 0)"
+    local pv; if [ "$focus" -lt "$n" ]; then pv="${prev[$focus]}"; else pv="$(render_sample)"; fi
+    printf '  %s\n' "$SEP"
+    printf '  %srender%s  %s\n' "$DIM" "$R" "$pv"
     printf '\n  %s↑/↓ move · enter toggle/select · m modes · ? explain · p preview · q quit%s\n' "$DIM" "$R"
     key=$(read_key)
     case "$key" in
