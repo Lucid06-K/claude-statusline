@@ -1,0 +1,5 @@
+# user data lives in ~/.claude, never in the repo — but ignore stray copies
+statusline.conf
+statusline.modes
+*.bak
+.DS_Store
