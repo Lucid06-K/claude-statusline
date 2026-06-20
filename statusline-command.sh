@@ -204,7 +204,7 @@ rl_synced() {                    # $1=pct  $2=reset_epoch  $3=name(5h|7d) -> ech
 ctx_seg=""
 if [ -n "$used_pct" ]; then
   printf_pct=$(printf "%.0f" "$used_pct" 2>/dev/null)
-  ctx_seg="${ESC}[90m▣${RESET} $(mk_bar "$printf_pct" 10) ${printf_pct}%"   # ▣ = context window
+  ctx_seg="${ESC}[90m»«${RESET}$(mk_bar "$printf_pct" 6) ${printf_pct}%"   # »« = compaction (context squeeze)
   [ "$printf_pct" -ge 85 ] 2>/dev/null && [ "$SL_CONTEXT_WARN" = 1 ] && ctx_seg="${ctx_seg} ${ESC}[91m⚠${RESET}"   # near auto-compact
 elif [ -n "$input_tokens" ]; then
   ctx_seg="ctx:${input_tokens}t"

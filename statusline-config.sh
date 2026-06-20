@@ -84,8 +84,8 @@ prev[1]="feat/vet ${GRN}⇡2${R}"
 prev[2]="${ORANGE}Opus 4.8${R}"
 prev[3]="${ORANGE}Opus 4.8${R} ${YEL}⚡${R}"
 prev[4]="${MAG}xhigh${R}"
-prev[5]="${DIM}▣${R} $(mini_bar 42 10) 42%"
-prev[6]="${DIM}▣${R} $(mini_bar 88 10) 88% ${RED}⚠${R}"
+prev[5]="${DIM}»«${R}$(mini_bar 42 6) 42%"
+prev[6]="${DIM}»«${R}$(mini_bar 88 6) 88% ${RED}⚠${R}"
 prev[7]="5h $(mini_bar 62 6) 62% ${DIM}⟳ 2h35m${R}"
 prev[8]="7d $(mini_bar 72 6) 72%"
 prev[9]="\$11.20/h"
@@ -175,7 +175,8 @@ set_default() {                  # $1 = mode index -> make it the new-session de
 delete_mode() {
   local nm="${mode_names[$1]}"; remove_mode_line "$nm"
   [ "$CURRENT_MODE" = "$nm" ] && CURRENT_MODE=""
-  picker=( $(printf '%s\n' "${picker[@]}" | grep -vxF -- "$nm") ); save_picker
+  local np=() x; for x in "${picker[@]}"; do [ "$x" != "$nm" ] && np+=("$x"); done   # glob-safe rebuild
+  picker=("${np[@]}"); save_picker
   load_modes
 }
 
@@ -256,12 +257,17 @@ edit_mode() {            # $1 = index to edit, or "" to create new
     else tc2="$(mktemp)"; for ((i=0;i<n;i++)); do echo "${keys[$i]}=${ED[$i]}"; done > "$tc2"; pv="$(render_sample "$tc2")"; rm -f "$tc2"; fi
     printf '  %s\n' "$SEP"
     printf '  %srender%s  %s\n' "$DIM" "$R" "$pv"
-    printf '\n  %s↑/↓ move · enter toggle/select · r rename · t desc · p preview · s save · esc cancel%s\n' "$DIM" "$R"
+    printf '\n  %s↑/↓ move · enter toggle · ? explain · r rename · t desc · p preview · s save · esc cancel%s\n' "$DIM" "$R"
     key=$(read_key)
     case "$key" in
       up|k)   focus=$(( (focus+nrows-1)%nrows )) ;;
       down|j) focus=$(( (focus+1)%nrows )) ;;
       esc)    return ;;
+      \?)     if [ "$focus" -lt "$n" ]; then
+                printf '%s' "${ESC}[H${ESC}[2J"
+                printf '\n  %s%s%s — %s%s%s\n\n  %s\n' "$B" "${labels[$focus]}" "$R" "$DIM" "${shorts[$focus]}" "$R" "${longs[$focus]}"
+                anykey
+              fi ;;
       r|R)    printf '%s' "${ESC}[?25h"; read -rp "  Name (one word): " v; v="${v// /}"; [ -n "$v" ] && EDNAME="$v"; printf '%s' "${ESC}[?25l" ;;
       t|T)    printf '%s' "${ESC}[?25h"; read -rp "  Description: " v; EDDESC="$v"; printf '%s' "${ESC}[?25l" ;;
       p|P)    local tc; tc="$(mktemp)"; for ((i=0;i<n;i++)); do echo "${keys[$i]}=${ED[$i]}"; done > "$tc"; do_preview "$tc"; rm -f "$tc"; anykey ;;
