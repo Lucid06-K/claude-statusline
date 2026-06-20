@@ -40,7 +40,7 @@ cd claude-statusline
 ./install.sh
 ```
 
-`install.sh` symlinks the two scripts into `~/.claude/`. Then:
+`install.sh` symlinks the scripts into `~/.claude/` and installs the `/mode` command. Then:
 
 1. **Wire the status line** — in `~/.claude/settings.json`:
    ```json
@@ -54,43 +54,49 @@ cd claude-statusline
 A truecolor terminal (iTerm2, Ghostty, Warp, VS Code) gives exact colors; others fall back to
 256/16-color automatically.
 
-## Configure — `slconfig`
+## Modes
 
-Run `slconfig` (or `bash ~/.claude/statusline-config.sh`) for an interactive menu.
+The unit of configuration is a **mode** — a named preset of which elements show. Seeded with
+`full`, `work`, `cost`, `minimal`, `focus`, `zen` (all editable). Two places set them:
 
-**Main menu**
-- `number(s)` — toggle elements on/off (e.g. `3` or `2 7 9`)
-- `m` — open the **Modes** menu
-- `a` / `n` — all on / all off
-- `?N` — explain element N
-- `p` — preview against sample data
-- `q` — save & quit
+### `slconfig` — the default for *new* sessions
 
-**Modes** (`m`) — named presets:
-- `number` — apply a mode
-- `c` — create a new mode from scratch
-- `eN` — edit which elements mode N includes
-- `dN` — delete mode N
-- `s` — save your current toggles as a new mode
+Run `slconfig` (arrow-key TUI). The main screen lists your modes; the highlighted one's full
+status line previews live underneath.
+- **↑/↓** move · **Enter** set the highlighted mode as the **default for new sessions**
+- **e** edit a mode · **c** create one · **d** delete · **p** preview · **q** quit
 
-**Mode editor** (`c` / `eN`): `number(s)` toggle · `r` rename · `t` description · `p` preview · `s` save · `b` cancel
+Editing/creating opens the element editor (this is where individual on/off lives):
+`↑/↓` move · `Enter` toggle · `r` rename · `t` description · `p` preview · `s` save · `esc` cancel
 
-Seeded modes: `full`, `work`, `cost`, `minimal`, `focus`, `zen`.
+### `/mode` — this session only
+
+Inside Claude Code, switch the **current session's** mode without touching others:
+- `/mode <name>` — apply a mode to this session
+- `/mode` — list modes and show the current one
+- `/mode clear` — revert this session to the global default
+
+This works because Claude Code exposes `$CLAUDE_CODE_SESSION_ID`; `/mode` writes a per-session
+conf the status line prefers for that session.
 
 ## Files
 
 | Path | Role |
 |---|---|
 | `statusline-command.sh` | The status line renderer (Claude Code pipes JSON to stdin) |
-| `statusline-config.sh` | Interactive configurator |
-| `~/.claude/statusline.conf` | Element toggles (managed by the configurator) |
-| `~/.claude/statusline.modes` | Mode presets (managed by the configurator) |
+| `statusline-config.sh` | Mode manager / configurator (`slconfig`) |
+| `statusline-mode.sh` | Applies a mode to a conf (used by `/mode`) |
+| `mode.md` | The `/mode` slash command (installed to `~/.claude/commands/`) |
+| `~/.claude/statusline.conf` | Global default (managed by `slconfig`) |
+| `~/.claude/statusline.modes` | Mode presets (managed by the menu) |
+| `~/.claude/statusline.sessions/<id>.conf` | Per-session overrides (managed by `/mode`) |
 
-The two `.conf`/`.modes` files are per-machine user data and live in `~/.claude/`, not in this repo.
+The `.conf` / `.modes` / `.sessions` files are per-machine user data under `~/.claude/`, not in this repo.
 
 ## How it works
 
 Claude Code invokes the status line command on each render, piping a JSON blob (model, effort,
-context window, cost, rate limits, etc.) to stdin. `statusline-command.sh` parses it with `jq`,
-builds each segment, and honors the toggles in `~/.claude/statusline.conf`. The configurator
-just reads/writes that conf and the modes file.
+context window, cost, rate limits, **session id**, etc.) to stdin. `statusline-command.sh` parses
+it with `jq` and builds each segment. Config precedence per render: an explicit `$SL_CONF`
+(used for previews) → a per-session conf matching the JSON's `session_id` (set by `/mode`) →
+the global `statusline.conf` (set by `slconfig`).

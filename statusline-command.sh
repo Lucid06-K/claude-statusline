@@ -60,7 +60,12 @@ rainbow_text() {
 SL_DIRECTORY=1; SL_GIT=1; SL_MODEL=1; SL_FASTMODE=1; SL_EFFORT=1
 SL_CONTEXT=1; SL_CONTEXT_WARN=1; SL_RATELIMIT_5H=1; SL_RATELIMIT_7D=1
 SL_BURNRATE=1; SL_COST=1; SL_COST_COLOR=1; SL_ELAPSED=1; SL_CLOCK=1
-SL_CONF="${SL_CONF:-${HOME}/.claude/statusline.conf}"   # env override lets the configurator preview unsaved modes
+# Config precedence: explicit $SL_CONF (preview) > per-session mode (set via /mode) > global default.
+if [ -z "${SL_CONF:-}" ]; then
+  SL_CONF="${HOME}/.claude/statusline.conf"
+  _sess="${HOME}/.claude/statusline.sessions/${session_id}.conf"
+  [ -n "$session_id" ] && [ -f "$_sess" ] && SL_CONF="$_sess"
+fi
 [ -f "$SL_CONF" ] && . "$SL_CONF"
 
 # --- Segment: Directory (folder glyph + smart path) ---

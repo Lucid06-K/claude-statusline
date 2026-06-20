@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Interactive configurator for the Claude Code status line.
-# Arrow-key driven (↑/↓ move, Enter select) in the same layout style as dsort.
-# - Toggle elements, or apply/create/edit "modes" (presets) — all from the menu.
-# - Saves immediately to ~/.claude/statusline.conf (read on every render).
-# - Modes live in ~/.claude/statusline.modes (managed here, no file editing needed).
+# Mode manager for the Claude Code status line (arrow-key TUI, dsort layout).
+# - Main screen lists MODES (presets). Enter sets the highlighted mode as the
+#   DEFAULT for new sessions (writes ~/.claude/statusline.conf).
+# - e = edit / c = create opens the element editor (individual on/off lives there).
+# - Per-session selection happens inside Claude with the /mode command.
+# - Modes are stored in ~/.claude/statusline.modes (managed here, no file editing).
 
 CONF="${HOME}/.claude/statusline.conf"
 MODES="${HOME}/.claude/statusline.modes"
@@ -64,10 +65,10 @@ longs=(  "The working directory. Home shows as ~, a folder directly under home a
          "The current clock time (HH:MM)." )
 
 n=${#keys[@]}
-state=(); tmp_state=(); ED=(); CURRENT_MODE=""; EDNAME=""; EDDESC=""
+tmp_state=(); ED=(); CURRENT_MODE=""; EDNAME=""; EDDESC=""
 mode_names=(); mode_descs=(); mode_specs=()
 
-# Per-element example renders — shown for whichever option the selector sits on.
+# Per-element example renders — shown for whichever option the editor selector sits on.
 prev=()
 prev[0]="📁 Projects/petpak"
 prev[1]="feat/vet ${GRN}⇡2${R}"
@@ -95,24 +96,19 @@ read_key() {
 }
 anykey() { printf '\n  %spress any key%s' "$DIM" "$R"; IFS= read -r -s -n 1 _ 2>/dev/null; }
 
-# ---------- live config (toggle) load/save ----------
-load() {
-  local i; for ((i=0;i<n;i++)); do state[$i]=1; done
+# ---------- global default (the conf the status line reads for new sessions) ----------
+read_default_mode() {            # -> CURRENT_MODE from the global conf's SL_MODE
   CURRENT_MODE=""
   [ -f "$CONF" ] || return
   local k v
-  while IFS='=' read -r k v; do
-    case "$k" in ''|\#*) continue;; esac
-    [ "$k" = "SL_MODE" ] && { CURRENT_MODE="$v"; continue; }
-    for ((i=0;i<n;i++)); do [ "${keys[$i]}" = "$k" ] && state[$i]=$v; done
-  done < "$CONF"
+  while IFS='=' read -r k v; do [ "$k" = "SL_MODE" ] && { CURRENT_MODE="$v"; return; }; done < "$CONF"
 }
-save() {
-  { echo "# Claude Code status line — element toggles (1=show, 0=hide)"
-    echo "# Managed by: bash ~/.claude/statusline-config.sh"
-    echo "SL_MODE=${CURRENT_MODE}"
-    local i; for ((i=0;i<n;i++)); do echo "${keys[$i]}=${state[$i]}"; done
+write_default() {                # $1 = mode name, $2.. via spec_to_state already in tmp_state
+  { echo "# Claude Code status line — global default for new sessions (managed by slconfig)"
+    echo "SL_MODE=$1"
+    local i; for ((i=0;i<n;i++)); do echo "${keys[$i]}=${tmp_state[$i]}"; done
   } > "$CONF"
+  CURRENT_MODE="$1"
 }
 
 # ---------- modes ----------
@@ -139,7 +135,7 @@ load_modes() {
     mode_names+=("$nm"); mode_descs+=("$ds"); mode_specs+=("$sp")
   done < "$MODES"
 }
-spec_to_state() {
+spec_to_state() {                # fill tmp_state[] from a spec string
   local spec="$1" i first key
   for ((i=0;i<n;i++)); do tmp_state[$i]=0; done
   set -- $spec; first="$1"
@@ -149,6 +145,7 @@ spec_to_state() {
     for ((i=0;i<n;i++)); do [ "${keys[$i]}" = "$key" ] && tmp_state[$i]=1; done
   done
 }
+spec_to_conf() { spec_to_state "$1"; local i; for ((i=0;i<n;i++)); do echo "${keys[$i]}=${tmp_state[$i]}"; done; }
 ed_to_spec() {
   local i on="" allon=1 alloff=1
   for ((i=0;i<n;i++)); do
@@ -160,24 +157,13 @@ ed_to_spec() {
 }
 remove_mode_line() { seed_modes; local tmp="${MODES}.tmp"; grep -v "^${1}|" "$MODES" > "$tmp" 2>/dev/null; mv -f "$tmp" "$MODES"; }
 write_mode() { remove_mode_line "$1"; printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$MODES"; load_modes; }
-apply_mode() {
-  spec_to_state "${mode_specs[$1]}"
-  local i; for ((i=0;i<n;i++)); do state[$i]="${tmp_state[$i]}"; done
-  CURRENT_MODE="${mode_names[$1]}"; save
+set_default() {                  # $1 = mode index -> make it the new-session default
+  spec_to_state "${mode_specs[$1]}"; write_default "${mode_names[$1]}"
 }
 delete_mode() {
   local nm="${mode_names[$1]}"; remove_mode_line "$nm"
   [ "$CURRENT_MODE" = "$nm" ] && CURRENT_MODE=""
   load_modes
-}
-mode_status() {
-  [ -z "$CURRENT_MODE" ] && { echo "custom"; return; }
-  local i mi=-1
-  for ((i=0;i<${#mode_names[@]};i++)); do [ "${mode_names[$i]}" = "$CURRENT_MODE" ] && mi=$i; done
-  [ "$mi" -lt 0 ] && { echo "$CURRENT_MODE"; return; }
-  spec_to_state "${mode_specs[$mi]}"
-  local diff=0; for ((i=0;i<n;i++)); do [ "${state[$i]}" != "${tmp_state[$i]}" ] && diff=1; done
-  [ "$diff" = 1 ] && echo "${CURRENT_MODE} ${YEL}(modified)${R}" || echo "$CURRENT_MODE"
 }
 
 # ---------- preview ----------
@@ -190,6 +176,7 @@ render_sample() {                # $1 = optional conf path. Runs in an isolated 
   rm -rf "$td" 2>/dev/null
 }
 do_preview() { printf '\n  %sPreview%s %s(sample data: busy session)%s\n  ' "$B" "$R" "$DIM" "$R"; render_sample "$1"; printf '\n'; }
+preview_spec() { local tc; tc="$(mktemp)"; spec_to_conf "$1" > "$tc"; render_sample "$tc"; rm -f "$tc"; }
 
 # ---------- row renderers (dsort style: ▸ + reverse-video on focus) ----------
 row_toggle() {   # $1 idx  $2 on/off  $3 focus?
@@ -207,7 +194,7 @@ row_action() {   # $1 text  $2 focus?
   else printf '     %s\n' "$1"; fi
 }
 
-# ---------- mode editor ----------
+# ---------- mode editor (where individual on/off lives) ----------
 edit_mode() {            # $1 = index to edit, or "" to create new
   local i idx="$1" oldname="" focus=0 nrows key v
   if [ -n "$idx" ]; then
@@ -260,34 +247,36 @@ edit_save() {            # $1 = oldname; returns 0 to close editor
   [ -z "$EDNAME" ] && { printf '\n  %sName required.%s' "$YEL" "$R"; anykey; return 1; }
   [ -n "$oldname" ] && [ "$oldname" != "$EDNAME" ] && remove_mode_line "$oldname"
   write_mode "$EDNAME" "$EDDESC" "$(ed_to_spec)"
-  [ "$CURRENT_MODE" = "$oldname" ] && [ -n "$oldname" ] && CURRENT_MODE="$EDNAME"
+  [ -n "$oldname" ] && [ "$CURRENT_MODE" = "$oldname" ] && CURRENT_MODE="$EDNAME"
+  # if we edited the current default, refresh the global conf so it stays in sync
+  if [ "$EDNAME" = "$CURRENT_MODE" ]; then
+    local j; for ((j=0;j<${#mode_names[@]};j++)); do [ "${mode_names[$j]}" = "$EDNAME" ] && { set_default "$j"; break; }; done
+  fi
   return 0
 }
-save_current_as_mode() {
-  local nm ds i
-  printf '%s' "${ESC}[?25h"
-  read -rp "  New mode name (one word): " nm; nm="${nm// /}"
-  [ -z "$nm" ] && { printf '%s' "${ESC}[?25l"; return; }
-  read -rp "  Short description: " ds
-  printf '%s' "${ESC}[?25l"
-  for ((i=0;i<n;i++)); do ED[$i]="${state[$i]}"; done
-  write_mode "$nm" "$ds" "$(ed_to_spec)"; CURRENT_MODE="$nm"; save
-  printf '\n  %sSaved mode "%s".%s' "$GRN" "$nm" "$R"; anykey
-}
 
-# ---------- modes menu ----------
-modes_menu() {
-  local focus=0 key M nrows i
+# ---------- main menu: pick the default mode for new sessions ----------
+finish() {
+  printf '%s' "${ESC}[?25h${ESC}[H${ESC}[2J"
+  printf '\n  %sDone.%s Default for new sessions: %s%s%s\n' "$GRN" "$R" "$CYN" "${CURRENT_MODE:-custom}" "$R"
+  printf '  %sthis session, switch anytime with%s %s/mode <name>%s\n' "$DIM" "$R" "$CYN" "$R"
+  do_preview; printf '\n'
+  exit 0
+}
+main_menu() {
+  local focus=0 key M nrows i MSG=""
   printf '%s' "${ESC}[?25l"
   while :; do
-    load_modes; M=${#mode_names[@]}; nrows=$((M+3))   # modes + New / Save current / Back
-    [ "$focus" -ge "$nrows" ] && focus=$((nrows-1))
+    read_default_mode; load_modes
+    M=${#mode_names[@]}; nrows=$((M+2))            # modes + Create + Quit
+    [ "$focus" -ge "$nrows" ] && focus=$((nrows-1)); [ "$focus" -lt 0 ] && focus=0
     printf '%s' "${ESC}[H${ESC}[2J"
-    printf '\n  %sModes%s  %s— apply a preset, or create/edit one%s\n' "$B" "$R" "$DIM" "$R"
-    printf '  active: %s\n' "$(mode_status)"
+    printf '\n  %sClaude Code status line — Modes%s\n' "$B" "$R"
+    printf '  %sdefault for new sessions:%s %s%s%s\n' "$DIM" "$R" "$CYN" "${CURRENT_MODE:-custom}" "$R"
+    [ -n "$MSG" ] && printf '  %s%s%s\n' "$GRN" "$MSG" "$R"
     printf '  %s\n' "$SEP"
     for ((i=0;i<M;i++)); do
-      local star="  "; [ "${mode_names[$i]}" = "$CURRENT_MODE" ] && star="${GRN}●${R} "
+      local star="  "; [ "${mode_names[$i]}" = "$CURRENT_MODE" ] && star="${GRN}★${R} "
       if [ "$focus" -eq "$i" ]; then
         printf '  %s ▸ %-10s %s %s\n' "$REV" "${mode_names[$i]}" "${mode_descs[$i]}" "$R"
       else
@@ -295,74 +284,26 @@ modes_menu() {
       fi
     done
     printf '  %s\n' "$SEP"
-    row_action "+ Create new mode"    "$([ "$focus" -eq "$M" ] && echo 1 || echo 0)"
-    row_action "Save current as mode" "$([ "$focus" -eq $((M+1)) ] && echo 1 || echo 0)"
-    row_action "← Back"               "$([ "$focus" -eq $((M+2)) ] && echo 1 || echo 0)"
-    printf '\n  %s↑/↓ move · enter apply/select · e edit · d delete · p preview · esc back%s\n' "$DIM" "$R"
-    key=$(read_key)
-    case "$key" in
-      up|k)    focus=$(( (focus+nrows-1)%nrows )) ;;
-      down|j)  focus=$(( (focus+1)%nrows )) ;;
-      esc|b|B) return ;;
-      e|E)     [ "$focus" -lt "$M" ] && edit_mode "$focus" ;;
-      d|D)     [ "$focus" -lt "$M" ] && delete_mode "$focus" ;;
-      c|C)     edit_mode "" ;;
-      s|S)     save_current_as_mode ;;
-      p|P)     do_preview; anykey ;;
-      "")      if   [ "$focus" -lt "$M" ]; then apply_mode "$focus"; do_preview; anykey
-               elif [ "$focus" -eq "$M" ]; then edit_mode ""
-               elif [ "$focus" -eq $((M+1)) ]; then save_current_as_mode
-               else return; fi ;;
-    esac
-  done
-}
-
-# ---------- main menu ----------
-finish() {
-  save; printf '%s' "${ESC}[?25h${ESC}[H${ESC}[2J"
-  printf '\n  %sSaved.%s Status line updated — it refreshes automatically.\n' "$GRN" "$R"
-  do_preview; printf '\n'
-  exit 0
-}
-main_menu() {
-  local focus=0 key i nrows; nrows=$((n+4))   # elements + Modes / All on / All off / Save & quit
-  printf '%s' "${ESC}[?25l"
-  while :; do
-    load_modes
-    printf '%s' "${ESC}[H${ESC}[2J"
-    printf '\n  %sClaude Code status line%s  %s— choose what shows%s\n' "$B" "$R" "$DIM" "$R"
-    printf '  mode: %s\n' "$(mode_status)"
-    printf '  %s\n' "$SEP"
-    for ((i=0;i<n;i++)); do row_toggle "$i" "${state[$i]}" "$([ "$focus" -eq "$i" ] && echo 1 || echo 0)"; done
-    printf '  %s\n' "$SEP"
-    row_action "Modes (presets) ▸" "$([ "$focus" -eq "$n" ] && echo 1 || echo 0)"
-    row_action "Turn all on"       "$([ "$focus" -eq $((n+1)) ] && echo 1 || echo 0)"
-    row_action "Turn all off"      "$([ "$focus" -eq $((n+2)) ] && echo 1 || echo 0)"
-    row_action "${GRN}Save & quit${R}" "$([ "$focus" -eq $((n+3)) ] && echo 1 || echo 0)"
-    local pv; if [ "$focus" -lt "$n" ]; then pv="${prev[$focus]}"; else pv="$(render_sample)"; fi
+    row_action "+ Create new mode" "$([ "$focus" -eq "$M" ] && echo 1 || echo 0)"
+    row_action "${GRN}Quit${R}"     "$([ "$focus" -eq $((M+1)) ] && echo 1 || echo 0)"
+    local pv=""; [ "$focus" -lt "$M" ] && pv="$(preview_spec "${mode_specs[$focus]}")"
     printf '  %s\n' "$SEP"
     printf '  %srender%s  %s\n' "$DIM" "$R" "$pv"
-    printf '\n  %s↑/↓ move · enter toggle/select · m modes · ? explain · p preview · q quit%s\n' "$DIM" "$R"
+    printf '\n  %s↑/↓ move · enter set as default · e edit · c new · d delete · p preview · q quit%s\n' "$DIM" "$R"
     key=$(read_key)
     case "$key" in
-      up|k)    focus=$(( (focus+nrows-1)%nrows )) ;;
-      down|j)  focus=$(( (focus+1)%nrows )) ;;
+      up|k)    focus=$(( (focus+nrows-1)%nrows )); MSG="" ;;
+      down|j)  focus=$(( (focus+1)%nrows )); MSG="" ;;
       q|Q|esc) finish ;;
-      m|M)     modes_menu ;;
-      p|P)     do_preview; anykey ;;
-      a|A)     for ((i=0;i<n;i++)); do state[$i]=1; done; save ;;
-      \?)      if [ "$focus" -lt "$n" ]; then
-                 printf '%s' "${ESC}[H${ESC}[2J"
-                 printf '\n  %s%s%s — %s%s%s\n\n  %s\n' "$B" "${labels[$focus]}" "$R" "$DIM" "${shorts[$focus]}" "$R" "${longs[$focus]}"
-                 anykey
-               fi ;;
-      "")      if   [ "$focus" -lt "$n" ]; then [ "${state[$focus]}" = 1 ] && state[$focus]=0 || state[$focus]=1; save
-               elif [ "$focus" -eq "$n" ]; then modes_menu
-               elif [ "$focus" -eq $((n+1)) ]; then for ((i=0;i<n;i++)); do state[$i]=1; done; save
-               elif [ "$focus" -eq $((n+2)) ]; then for ((i=0;i<n;i++)); do state[$i]=0; done; save
+      e|E)     [ "$focus" -lt "$M" ] && edit_mode "$focus" ;;
+      c|C)     edit_mode "" ;;
+      d|D)     if [ "$focus" -lt "$M" ]; then local dn="${mode_names[$focus]}"; delete_mode "$focus"; MSG="deleted '$dn'"; fi ;;
+      p|P)     if [ "$focus" -lt "$M" ]; then printf '\n  '; preview_spec "${mode_specs[$focus]}"; anykey; fi ;;
+      "")      if   [ "$focus" -lt "$M" ]; then set_default "$focus"; MSG="★ '${CURRENT_MODE}' is now the default for new sessions"
+               elif [ "$focus" -eq "$M" ]; then edit_mode ""
                else finish; fi ;;
     esac
   done
 }
 
-seed_modes; load; main_menu
+seed_modes; main_menu
