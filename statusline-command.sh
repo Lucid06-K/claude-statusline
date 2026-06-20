@@ -154,6 +154,25 @@ fmt_eta() {
   fi
 }
 
+# --- Helper: sync a rate-limit % across sessions ---------------------------------
+# Account-wide usage is monotonic within a window (until it resets), so the highest
+# value any session has seen for the current window (keyed by reset time) is the most
+# accurate. Each render reads/writes a shared file so every session shows the same %.
+rl_synced() {                    # $1=pct  $2=reset_epoch  $3=name(5h|7d) -> echoes synced pct
+  local pct="$1" reset="${2:-0}" name="$3"
+  local dir="${TMPDIR:-/tmp}/cc-statusline" f
+  f="$dir/rl-${name}"
+  mkdir -p "$dir" 2>/dev/null
+  local sreset spct
+  [ -f "$f" ] && IFS=$'\t' read -r sreset spct < "$f"
+  # same window as cached -> take the higher (fresher) value; new window -> start over
+  if [ "$sreset" = "$reset" ] && [ -n "$spct" ] && [ "$spct" -gt "$pct" ] 2>/dev/null; then
+    pct="$spct"
+  fi
+  printf '%s\t%s\n' "$reset" "$pct" > "$f.$$" 2>/dev/null && mv -f "$f.$$" "$f" 2>/dev/null
+  printf '%s' "$pct"
+}
+
 # --- Segment: Context window usage (mini progress bar + percentage) ---
 ctx_seg=""
 if [ -n "$used_pct" ]; then
@@ -164,25 +183,23 @@ elif [ -n "$input_tokens" ]; then
   ctx_seg="ctx:${input_tokens}t"
 fi
 
-# --- Segment: Rate limit (5h window; bar + % + reset countdown when high) ---
+# --- Segment: Rate limit (5h window; bar + % + reset countdown, synced across sessions) ---
 rl_seg=""
 if [ -n "$rl5_pct" ]; then
   rp=$(printf "%.0f" "$rl5_pct" 2>/dev/null)
+  rp=$(rl_synced "$rp" "$rl5_reset" "5h")
   rl_seg="5h $(mk_bar "$rp" 6) ${rp}%"
-  if [ "$rp" -ge 80 ] && [ -n "$rl5_reset" ] && [ "$rl5_reset" != "null" ]; then
-    rl_seg="${rl_seg} ${ESC}[90m⟳$(fmt_eta "$rl5_reset")${RESET}"
-  fi
+  [ -n "$rl5_reset" ] && [ "$rl5_reset" != "null" ] && rl_seg="${rl_seg} ${ESC}[90m⟳$(fmt_eta "$rl5_reset")${RESET}"
 fi
 
-# --- Segment: 7-day rate limit (only surfaces once it's a real constraint) ---
+# --- Segment: 7-day rate limit (synced; only surfaces once it's a real constraint) ---
 rl7_seg=""
 if [ -n "$rl7_pct" ]; then
   rp7=$(printf "%.0f" "$rl7_pct" 2>/dev/null)
+  rp7=$(rl_synced "$rp7" "$rl7_reset" "7d")
   if [ "$rp7" -ge 50 ] 2>/dev/null; then
     rl7_seg="7d $(mk_bar "$rp7" 6) ${rp7}%"
-    if [ "$rp7" -ge 80 ] && [ -n "$rl7_reset" ] && [ "$rl7_reset" != "null" ]; then
-      rl7_seg="${rl7_seg} ${ESC}[90m⟳$(fmt_eta "$rl7_reset")${RESET}"
-    fi
+    [ -n "$rl7_reset" ] && [ "$rl7_reset" != "null" ] && rl7_seg="${rl7_seg} ${ESC}[90m⟳$(fmt_eta "$rl7_reset")${RESET}"
   fi
 fi
 
