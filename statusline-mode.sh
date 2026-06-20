@@ -11,10 +11,20 @@
 MODES="${HOME}/.claude/statusline.modes"
 GLOBAL="${HOME}/.claude/statusline.conf"
 SESSDIR="${HOME}/.claude/statusline.sessions"
+PICKER="${HOME}/.claude/statusline.picker"   # modes chosen (in slconfig) to show in the /mode picker
 KEYS="SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK"
 sid="${CLAUDE_CODE_SESSION_ID:-}"
 
 list_modes() { [ -f "$MODES" ] && grep -vE '^[[:space:]]*#' "$MODES" | awk -F'|' 'NF>=2{printf "  %-10s %s\n",$1,$2}'; }
+# names of modes to surface in the /mode picker (slconfig's selection, in modes-file order;
+# falls back to the first 4 modes if nothing has been chosen yet)
+picker_names() {
+  if [ -f "$PICKER" ] && [ -s "$PICKER" ]; then
+    awk -F'|' 'NR==FNR{want[$1]=1;next} /^[[:space:]]*#/||$0==""{next} ($1 in want){print $1}' "$PICKER" "$MODES"
+  else
+    grep -vE '^[[:space:]]*#' "$MODES" 2>/dev/null | awk -F'|' 'NF>=2{print $1}' | head -4
+  fi
+}
 resolve_spec() { awk -F'|' -v m="$1" '$1==m{print $3; exit}' "$MODES"; }
 sess_conf() { printf '%s' "$SESSDIR/${sid}.conf"; }
 effective_conf() { if [ -n "$sid" ] && [ -f "$(sess_conf)" ]; then sess_conf; else printf '%s' "$GLOBAL"; fi; }
@@ -40,6 +50,14 @@ case "${1:-}" in
   ""|--list|list)
     echo "Available modes:"; list_modes
     m=$(current_mode); echo; echo "This session: ${m:-custom}"
+    ;;
+  --picker)
+    # name|description for each mode chosen to appear in the /mode picker
+    while IFS= read -r nm; do
+      [ -z "$nm" ] && continue
+      desc=$(awk -F'|' -v m="$nm" '$1==m{print $2; exit}' "$MODES")
+      printf '%s|%s\n' "$nm" "$desc"
+    done < <(picker_names)
     ;;
   --show|show)
     m=$(current_mode); [ -z "$m" ] && m="(custom)"

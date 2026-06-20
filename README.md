@@ -62,8 +62,9 @@ The unit of configuration is a **mode** — a named preset of which elements sho
 ### `slconfig` — the default for *new* sessions
 
 Run `slconfig` (arrow-key TUI). The main screen lists your modes; the highlighted one's full
-status line previews live underneath.
+status line previews live underneath. A `·/mode` tag marks modes that appear in the `/mode` picker.
 - **↑/↓** move · **Enter** set the highlighted mode as the **default for new sessions**
+- **g** choose which modes appear in the `/mode` picker (up to 4)
 - **e** edit a mode · **c** create one · **d** delete · **p** preview · **q** quit
 
 Editing/creating opens the element editor (this is where individual on/off lives):
@@ -72,8 +73,8 @@ Editing/creating opens the element editor (this is where individual on/off lives
 ### `/mode` — this session only
 
 Inside Claude Code, switch the **current session's** mode without touching others:
-- `/mode <name>` — apply a mode to this session
-- `/mode` — list modes and show the current one
+- `/mode` — pops an interactive picker (the modes you chose via `slconfig` → `g`, max 4)
+- `/mode <name>` — apply any mode directly (even one not in the picker)
 - `/mode clear` — revert this session to the global default
 
 This works because Claude Code exposes `$CLAUDE_CODE_SESSION_ID`; `/mode` writes a per-session

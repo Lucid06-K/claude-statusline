@@ -8,6 +8,7 @@
 
 CONF="${HOME}/.claude/statusline.conf"
 MODES="${HOME}/.claude/statusline.modes"
+PICKER="${HOME}/.claude/statusline.picker"
 SL="${HOME}/.claude/statusline-command.sh"
 
 ESC=$'\033'; R="${ESC}[0m"; B="${ESC}[1m"; DIM="${ESC}[2m"; REV="${ESC}[7m"
@@ -163,7 +164,29 @@ set_default() {                  # $1 = mode index -> make it the new-session de
 delete_mode() {
   local nm="${mode_names[$1]}"; remove_mode_line "$nm"
   [ "$CURRENT_MODE" = "$nm" ] && CURRENT_MODE=""
+  picker=( $(printf '%s\n' "${picker[@]}" | grep -vxF -- "$nm") ); save_picker
   load_modes
+}
+
+# ---------- /mode picker selection (which modes appear in the in-Claude /mode picker) ----------
+picker=()
+load_picker() {
+  picker=()
+  if [ -f "$PICKER" ]; then
+    local line; while IFS= read -r line; do [ -n "$line" ] && picker+=("$line"); done < "$PICKER"
+  else
+    local i; for ((i=0;i<${#mode_names[@]} && i<4;i++)); do picker+=("${mode_names[$i]}"); done
+    save_picker
+  fi
+}
+in_picker() { local x; for x in "${picker[@]}"; do [ "$x" = "$1" ] && return 0; done; return 1; }
+save_picker() { : > "$PICKER"; local x; for x in "${picker[@]}"; do printf '%s\n' "$x" >> "$PICKER"; done; }
+toggle_picker() {                # $1 = mode name; returns 1 if blocked by the 4-item cap
+  if in_picker "$1"; then
+    local new=() x; for x in "${picker[@]}"; do [ "$x" != "$1" ] && new+=("$x"); done; picker=("${new[@]}"); save_picker; return 0
+  fi
+  [ "${#picker[@]}" -ge 4 ] && return 1
+  picker+=("$1"); save_picker; return 0
 }
 
 # ---------- preview ----------
@@ -263,47 +286,85 @@ finish() {
   do_preview; printf '\n'
   exit 0
 }
+# Choose which modes appear in the in-Claude /mode picker (up to 4).
+picker_menu() {
+  local focus=0 key M i msg=""
+  printf '%s' "${ESC}[?25l"
+  while :; do
+    load_modes; M=${#mode_names[@]}
+    [ "$M" -eq 0 ] && return
+    [ "$focus" -ge "$M" ] && focus=$((M-1)); [ "$focus" -lt 0 ] && focus=0
+    printf '%s' "${ESC}[H${ESC}[2J"
+    printf '\n  %sChoose what appears in /mode%s  %s(the in-Claude picker, up to 4)%s\n' "$B" "$R" "$DIM" "$R"
+    printf '  selected: %s%d/4%s\n' "$CYN" "${#picker[@]}" "$R"
+    [ -n "$msg" ] && printf '  %s%s%s\n' "$YEL" "$msg" "$R"
+    printf '  %s\n' "$SEP"
+    for ((i=0;i<M;i++)); do
+      local chk=" "; in_picker "${mode_names[$i]}" && chk="✓"
+      if [ "$focus" -eq "$i" ]; then
+        printf '  %s ▸ [%s] %-10s %s %s\n' "$REV" "$chk" "${mode_names[$i]}" "${mode_descs[$i]}" "$R"
+      else
+        local g=" "; [ "$chk" = "✓" ] && g="${GRN}✓${R}"
+        printf '     [%s] %s%-10s%s %s%s%s\n' "$g" "$CYN" "${mode_names[$i]}" "$R" "$DIM" "${mode_descs[$i]}" "$R"
+      fi
+    done
+    printf '  %s\n' "$SEP"
+    printf '\n  %s↑/↓ move · space/enter toggle · esc done%s\n' "$DIM" "$R"
+    key=$(read_key)
+    case "$key" in
+      up|k)        focus=$(( (focus+M-1)%M )); msg="" ;;
+      down|j)      focus=$(( (focus+1)%M )); msg="" ;;
+      esc|b|B|q|Q) return ;;
+      " "|"")      if toggle_picker "${mode_names[$focus]}"; then msg=""; else msg="picker is full (4) — uncheck one first"; fi ;;
+    esac
+  done
+}
 main_menu() {
   local focus=0 key M nrows i MSG=""
   printf '%s' "${ESC}[?25l"
   while :; do
     read_default_mode; load_modes
-    M=${#mode_names[@]}; nrows=$((M+2))            # modes + Create + Quit
+    M=${#mode_names[@]}; nrows=$((M+3))            # modes + Configure picker + Create + Quit
     [ "$focus" -ge "$nrows" ] && focus=$((nrows-1)); [ "$focus" -lt 0 ] && focus=0
     printf '%s' "${ESC}[H${ESC}[2J"
     printf '\n  %sClaude Code status line — Modes%s\n' "$B" "$R"
-    printf '  %sdefault for new sessions:%s %s%s%s\n' "$DIM" "$R" "$CYN" "${CURRENT_MODE:-custom}" "$R"
+    printf '  %sdefault for new sessions:%s %s%s%s   %s★ default · ·/mode = in picker%s\n' "$DIM" "$R" "$CYN" "${CURRENT_MODE:-custom}" "$R" "$DIM" "$R"
     [ -n "$MSG" ] && printf '  %s%s%s\n' "$GRN" "$MSG" "$R"
     printf '  %s\n' "$SEP"
     for ((i=0;i<M;i++)); do
       local star="  "; [ "${mode_names[$i]}" = "$CURRENT_MODE" ] && star="${GRN}★${R} "
       if [ "$focus" -eq "$i" ]; then
-        printf '  %s ▸ %-10s %s %s\n' "$REV" "${mode_names[$i]}" "${mode_descs[$i]}" "$R"
+        local pt=""; in_picker "${mode_names[$i]}" && pt="  ·/mode"
+        printf '  %s ▸ %-10s %s%s %s\n' "$REV" "${mode_names[$i]}" "${mode_descs[$i]}" "$pt" "$R"
       else
-        printf '   %s%s%-10s%s %s%s%s\n' "$star" "$CYN" "${mode_names[$i]}" "$R" "$DIM" "${mode_descs[$i]}" "$R"
+        local pt=""; in_picker "${mode_names[$i]}" && pt=" ${DIM}·/mode${R}"
+        printf '   %s%s%-10s%s %s%s%s%s\n' "$star" "$CYN" "${mode_names[$i]}" "$R" "$DIM" "${mode_descs[$i]}" "$R" "$pt"
       fi
     done
     printf '  %s\n' "$SEP"
-    row_action "+ Create new mode" "$([ "$focus" -eq "$M" ] && echo 1 || echo 0)"
-    row_action "${GRN}Quit${R}"     "$([ "$focus" -eq $((M+1)) ] && echo 1 || echo 0)"
+    row_action "Configure /mode picker ▸" "$([ "$focus" -eq "$M" ] && echo 1 || echo 0)"
+    row_action "+ Create new mode"        "$([ "$focus" -eq $((M+1)) ] && echo 1 || echo 0)"
+    row_action "${GRN}Quit${R}"           "$([ "$focus" -eq $((M+2)) ] && echo 1 || echo 0)"
     local pv=""; [ "$focus" -lt "$M" ] && pv="$(preview_spec "${mode_specs[$focus]}")"
     printf '  %s\n' "$SEP"
     printf '  %srender%s  %s\n' "$DIM" "$R" "$pv"
-    printf '\n  %s↑/↓ move · enter set as default · e edit · c new · d delete · p preview · q quit%s\n' "$DIM" "$R"
+    printf '\n  %s↑/↓ move · enter set default · g /mode picker · e edit · c new · d delete · p preview · q quit%s\n' "$DIM" "$R"
     key=$(read_key)
     case "$key" in
       up|k)    focus=$(( (focus+nrows-1)%nrows )); MSG="" ;;
       down|j)  focus=$(( (focus+1)%nrows )); MSG="" ;;
       q|Q|esc) finish ;;
+      g|G)     picker_menu ;;
       e|E)     [ "$focus" -lt "$M" ] && edit_mode "$focus" ;;
       c|C)     edit_mode "" ;;
       d|D)     if [ "$focus" -lt "$M" ]; then local dn="${mode_names[$focus]}"; delete_mode "$focus"; MSG="deleted '$dn'"; fi ;;
       p|P)     if [ "$focus" -lt "$M" ]; then printf '\n  '; preview_spec "${mode_specs[$focus]}"; anykey; fi ;;
       "")      if   [ "$focus" -lt "$M" ]; then set_default "$focus"; MSG="★ '${CURRENT_MODE}' is now the default for new sessions"
-               elif [ "$focus" -eq "$M" ]; then edit_mode ""
+               elif [ "$focus" -eq "$M" ]; then picker_menu
+               elif [ "$focus" -eq $((M+1)) ]; then edit_mode ""
                else finish; fi ;;
     esac
   done
 }
 
-seed_modes; main_menu
+seed_modes; load_modes; load_picker; main_menu
