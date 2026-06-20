@@ -64,7 +64,7 @@ The unit of configuration is a **mode** — a named preset of which elements sho
 Run `slconfig` (arrow-key TUI). The main screen lists your modes; the highlighted one's full
 status line previews live underneath. A `·/mode` tag marks modes that appear in the `/mode` picker.
 - **↑/↓** move · **Enter** set the highlighted mode as the **default for new sessions**
-- **g** choose which modes appear in the `/mode` picker (up to 4)
+- **g** choose which modes appear in the `/mode` picker (up to 5 — your current mode is hidden, so 4 show)
 - **e** edit a mode · **c** create one · **d** delete · **p** preview · **q** quit
 
 Editing/creating opens the element editor (this is where individual on/off lives):

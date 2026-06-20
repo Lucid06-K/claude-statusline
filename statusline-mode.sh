@@ -52,11 +52,16 @@ case "${1:-}" in
     m=$(current_mode); echo; echo "This session: ${m:-custom}"
     ;;
   --picker)
-    # name|description for each mode chosen to appear in the /mode picker
+    # name|description for the picker: curated modes, minus the one this session is
+    # already on (switching to it is a no-op), capped at 4 (AskUserQuestion's limit).
+    cur=$(current_mode); count=0
     while IFS= read -r nm; do
       [ -z "$nm" ] && continue
+      [ "$nm" = "$cur" ] && continue
+      [ "$count" -ge 4 ] && break
       desc=$(awk -F'|' -v m="$nm" '$1==m{print $2; exit}' "$MODES")
       printf '%s|%s\n' "$nm" "$desc"
+      count=$((count+1))
     done < <(picker_names)
     ;;
   --show|show)

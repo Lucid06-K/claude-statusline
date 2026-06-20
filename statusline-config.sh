@@ -175,7 +175,7 @@ load_picker() {
   if [ -f "$PICKER" ]; then
     local line; while IFS= read -r line; do [ -n "$line" ] && picker+=("$line"); done < "$PICKER"
   else
-    local i; for ((i=0;i<${#mode_names[@]} && i<4;i++)); do picker+=("${mode_names[$i]}"); done
+    local i; for ((i=0;i<${#mode_names[@]} && i<5;i++)); do picker+=("${mode_names[$i]}"); done
     save_picker
   fi
 }
@@ -185,7 +185,7 @@ toggle_picker() {                # $1 = mode name; returns 1 if blocked by the 4
   if in_picker "$1"; then
     local new=() x; for x in "${picker[@]}"; do [ "$x" != "$1" ] && new+=("$x"); done; picker=("${new[@]}"); save_picker; return 0
   fi
-  [ "${#picker[@]}" -ge 4 ] && return 1
+  [ "${#picker[@]}" -ge 5 ] && return 1
   picker+=("$1"); save_picker; return 0
 }
 
@@ -295,8 +295,8 @@ picker_menu() {
     [ "$M" -eq 0 ] && return
     [ "$focus" -ge "$M" ] && focus=$((M-1)); [ "$focus" -lt 0 ] && focus=0
     printf '%s' "${ESC}[H${ESC}[2J"
-    printf '\n  %sChoose what appears in /mode%s  %s(the in-Claude picker, up to 4)%s\n' "$B" "$R" "$DIM" "$R"
-    printf '  selected: %s%d/4%s\n' "$CYN" "${#picker[@]}" "$R"
+    printf '\n  %sChoose what appears in /mode%s  %s(up to 5 — your current mode is hidden, so 4 show)%s\n' "$B" "$R" "$DIM" "$R"
+    printf '  selected: %s%d/5%s\n' "$CYN" "${#picker[@]}" "$R"
     [ -n "$msg" ] && printf '  %s%s%s\n' "$YEL" "$msg" "$R"
     printf '  %s\n' "$SEP"
     for ((i=0;i<M;i++)); do
@@ -315,7 +315,7 @@ picker_menu() {
       up|k)        focus=$(( (focus+M-1)%M )); msg="" ;;
       down|j)      focus=$(( (focus+1)%M )); msg="" ;;
       esc|b|B|q|Q) return ;;
-      " "|"")      if toggle_picker "${mode_names[$focus]}"; then msg=""; else msg="picker is full (4) — uncheck one first"; fi ;;
+      " "|"")      if toggle_picker "${mode_names[$focus]}"; then msg=""; else msg="picker is full (5) — uncheck one first"; fi ;;
     esac
   done
 }
