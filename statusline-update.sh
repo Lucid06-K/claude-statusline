@@ -35,8 +35,11 @@ apply() {                             # fast-forward pull, then syntax-check the
   for f in statusline-command.sh statusline-config.sh statusline-mode.sh statusline-update.sh; do
     bash -n "$REPO/$f" 2>/dev/null || { echo "  ✗ syntax error in $f after update (not loaded)"; return 1; }
   done
-  # keep the /mode command current too (converts older copy-based installs to a live symlink)
-  [ -f "$REPO/mode.md" ] && ln -sf "$REPO/mode.md" "${HOME}/.claude/commands/mode.md" 2>/dev/null
+  # Refresh the symlinks so updates self-heal: picks up new/renamed scripts and
+  # converts older copy-based installs (e.g. the /mode command) to live symlinks.
+  local s
+  for s in "$REPO"/statusline-*.sh; do ln -sf "$s" "${HOME}/.claude/$(basename "$s")" 2>/dev/null; done
+  [ -f "$REPO/mode.md" ] && { mkdir -p "${HOME}/.claude/commands"; ln -sf "$REPO/mode.md" "${HOME}/.claude/commands/mode.md" 2>/dev/null; }
   return 0
 }
 
