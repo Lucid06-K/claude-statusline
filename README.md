@@ -42,7 +42,7 @@ Everything is colour-coded, and most segments stay hidden until they're relevant
 - [Install](#install) · [What it shows](#what-it-shows)
 - [Modes](#modes) — [`slconfig`](#slconfig--the-default-for-new-sessions) · [`/mode`](#mode--per-session) · [the picker](#the-mode-picker)
 - [Element reference](#element-reference) · [Customising](#customising)
-- [How it works](#how-it-works) · [Updating](#updating) · [Uninstall](#uninstall) · [Requirements](#requirements) · [Security](#security) · [License](#license)
+- [How it works](#how-it-works) · [Updating](#updating) · [Versioning](#versioning) · [Uninstall](#uninstall) · [Requirements](#requirements) · [Security](#security) · [License](#license)
 
 ---
 
@@ -227,6 +227,18 @@ Turn on **once-a-day auto-update** in `slconfig` → **Updates** → *Auto-updat
 - **User space only — never `sudo`.** Nothing is downloaded outside the repo.
 
 > First install aside (you're trusting the initial clone), every later update is anchored to git's content hashing over HTTPS to the pinned origin.
+
+## Versioning
+
+[Semantic Versioning](https://semver.org), single rolling track on `main`:
+
+| Bump | When | Example |
+|---|---|---|
+| **MAJOR** | a breaking change to the conf/mode format or how the status line is wired — may require re-creating modes or re-running `install.sh` | `1.x → 2.0.0` |
+| **MINOR** | new elements, modes, or features — backward-compatible | `1.0 → 1.1.0` |
+| **PATCH** | bug fixes, docs, polish — no change to existing setups | `1.1.0 → 1.1.1` |
+
+The version lives in the repo-root [`VERSION`](VERSION) file and is reported by `statusline-update.sh --status` (alongside the git commit). Changes are recorded in the [CHANGELOG](CHANGELOG.md).
 
 ## Uninstall
 
