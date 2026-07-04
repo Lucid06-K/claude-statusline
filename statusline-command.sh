@@ -5,23 +5,30 @@
 input=$(cat)
 
 # --- Data extraction ---
-cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // empty')
-model=$(echo "$input" | jq -r '.model.display_name // empty')
-effort=$(echo "$input" | jq -r '.effort.level // empty')
-used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
-input_tokens=$(echo "$input" | jq -r '.context_window.current_usage.input_tokens // empty')
-session_cost=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
-duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty')
-session_id=$(echo "$input" | jq -r '.session_id // empty')
-fast_mode=$(echo "$input" | jq -r '.fast_mode')   # NOT `// empty` — jq's // treats false as empty
-rl5_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
-rl5_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
-rl7_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty')
-rl7_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
-output_style=$(echo "$input" | jq -r '.output_style.name // empty')
-tok_in=$(echo "$input" | jq -r '.context_window.total_input_tokens // empty')
-tok_out=$(echo "$input" | jq -r '.context_window.total_output_tokens // empty')
-thinking_on=$(echo "$input" | jq -r '.thinking.enabled')   # NOT `// empty` — jq's // treats false as empty
+# One jq invocation for every field (was 17 separate `echo | jq` pipelines — ~100ms
+# of fork/exec on every single render). Order below must match the read var list.
+# fast_mode / thinking use `| tostring` (not `// ""`) so `false` isn't lost.
+IFS=$'\t' read -r cwd model effort used_pct input_tokens session_cost duration_ms \
+  session_id fast_mode rl5_pct rl5_reset rl7_pct rl7_reset output_style tok_in tok_out thinking_on < <(
+  printf '%s' "$input" | jq -r '[
+    (.workspace.current_dir // .cwd // ""),
+    (.model.display_name // ""),
+    (.effort.level // ""),
+    (.context_window.used_percentage // ""),
+    (.context_window.current_usage.input_tokens // ""),
+    (.cost.total_cost_usd // ""),
+    (.cost.total_duration_ms // ""),
+    (.session_id // ""),
+    (.fast_mode | tostring),
+    (.rate_limits.five_hour.used_percentage // ""),
+    (.rate_limits.five_hour.resets_at // ""),
+    (.rate_limits.seven_day.used_percentage // ""),
+    (.rate_limits.seven_day.resets_at // ""),
+    (.output_style.name // ""),
+    (.context_window.total_input_tokens // ""),
+    (.context_window.total_output_tokens // ""),
+    (.thinking.enabled | tostring)
+  ] | @tsv')
 
 # --- Color support ---
 # Truecolor if the terminal advertises it (iTerm2/Ghostty/Warp/VSCode set COLORTERM);
@@ -71,7 +78,19 @@ if [ -z "${SL_CONF:-}" ]; then
   _sess="${HOME}/.claude/statusline.sessions/${session_id}.conf"
   [ -n "$session_id" ] && [ -f "$_sess" ] && SL_CONF="$_sess"
 fi
-[ -f "$SL_CONF" ] && . "$SL_CONF"
+# Parse the conf as KEY=VALUE — never `source` it. A mode name is written into the
+# conf by slconfig, so sourcing would execute arbitrary code from a mode name on
+# every render. Toggles accept only 0/1; SL_MODE is a display-only string.
+if [ -f "$SL_CONF" ]; then
+  while IFS='=' read -r _k _v || [ -n "$_k" ]; do
+    case "$_k" in
+      SL_MODE) SL_MODE="$_v" ;;
+      SL_*)
+        case "$_k" in *[!A-Z0-9_]*) continue ;; esac     # reject anything but A-Z/0-9/_ in the key
+        case "$_v" in 0|1) printf -v "$_k" '%s' "$_v" ;; esac ;;
+    esac
+  done < "$SL_CONF"
+fi
 
 # --- Daily auto-update (opt-in: ~/.claude/statusline.auto-update) ---
 # Cheap throttle (one stamp read + date) every render; once a day it detaches a
@@ -227,7 +246,8 @@ if [ -n "$rl5_pct" ]; then
   rp=$(printf "%.0f" "$rl5_pct" 2>/dev/null)
   rp=$(rl_synced "$rp" "$rl5_reset" "5h")
   rl_seg="5h $(mk_bar "$rp" 6) ${rp}%"
-  [ -n "$rl5_reset" ] && [ "$rl5_reset" != "null" ] && rl_seg="${rl_seg} ${ESC}[90m⟳ $(fmt_eta "$rl5_reset")${RESET}"
+  # reset countdown only once the window is a real constraint (>=80%), matching the docs
+  [ "$rp" -ge 80 ] 2>/dev/null && [ -n "$rl5_reset" ] && [ "$rl5_reset" != "null" ] && rl_seg="${rl_seg} ${ESC}[90m⟳ $(fmt_eta "$rl5_reset")${RESET}"
 fi
 
 # --- Segment: 7-day rate limit (synced; only surfaces once it's a real constraint) ---
@@ -237,7 +257,7 @@ if [ -n "$rl7_pct" ]; then
   rp7=$(rl_synced "$rp7" "$rl7_reset" "7d")
   if [ "$rp7" -ge 50 ] 2>/dev/null; then
     rl7_seg="7d $(mk_bar "$rp7" 6) ${rp7}%"
-    [ -n "$rl7_reset" ] && [ "$rl7_reset" != "null" ] && rl7_seg="${rl7_seg} ${ESC}[90m⟳ $(fmt_eta "$rl7_reset")${RESET}"
+    [ "$rp7" -ge 80 ] 2>/dev/null && [ -n "$rl7_reset" ] && [ "$rl7_reset" != "null" ] && rl7_seg="${rl7_seg} ${ESC}[90m⟳ $(fmt_eta "$rl7_reset")${RESET}"
   fi
 fi
 

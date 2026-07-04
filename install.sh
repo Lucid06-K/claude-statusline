@@ -23,6 +23,13 @@ done
 ln -sf "$REPO/mode.md" "$DEST/commands/mode.md"
 echo "✓ installed /mode command"
 
+# 2b) seed the mode presets so /mode works immediately (without it, /mode is broken
+# until the user opens slconfig once). Never clobber an existing file.
+if [ ! -f "$DEST/statusline.modes" ] && [ -f "$REPO/statusline.modes.example" ]; then
+  cp "$REPO/statusline.modes.example" "$DEST/statusline.modes"
+  echo "✓ seeded default modes  ~/.claude/statusline.modes"
+fi
+
 # 3) status line in settings.json (back up, then set .statusLine)
 SETTINGS="$DEST/settings.json"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"

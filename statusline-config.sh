@@ -28,8 +28,13 @@ mini_bar() {
   printf '%s[90m▕%s[%dm%s%s[90m%s▏%s' "$ESC" "$ESC" "$col" "$f" "$ESC" "$e" "$R"
 }
 
-cleanup() { printf '%s' "${ESC}[?25h"; }   # always restore the cursor
-trap cleanup EXIT INT TERM
+_stty=$(stty -g 2>/dev/null)               # snapshot tty modes to restore on exit
+cleanup() { [ -n "$_stty" ] && stty "$_stty" 2>/dev/null; printf '%s' "${ESC}[?25h"; }
+trap cleanup EXIT
+# Ctrl-C must EXIT (and restore the tty), not fall through the read as an empty key
+# — otherwise it was interpreted as Enter and fired the focused action, and left the
+# terminal with echo disabled.
+trap 'cleanup; exit 130' INT TERM
 
 # key | label | one-line summary | full explanation
 keys=(   SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN \
@@ -61,7 +66,7 @@ longs=(  "The working directory. Home shows as ~, a folder directly under home a
          "The active model's display name (e.g. Opus 4.8 (1M context)) in Claude's brand orange." \
          "A ⚡ next to the model only while fast mode (/fast) is active." \
          "Your reasoning-effort level (low/medium/high/xhigh/max), colored to match Claude Code's own effort selector: yellow / green / blue / magenta / rainbow." \
-         "A 10-cell bar + percentage of how full the context window is, shifting green → yellow → red as it fills." \
+         "A 6-cell bar + percentage of how full the context window is, shifting green → yellow → red as it fills." \
          "A red ⚠ on the context meter once usage passes 85% — i.e. you're close to an automatic /compact." \
          "How much of your plan's rolling 5-hour allowance is spent (bar + %). At ≥80% it shows a ⟳ reset countdown. Hitting 100% is what triggers 'Now using usage credits'." \
          "Same meter for the rolling 7-day window. Hidden until 50% so it only shows when it matters; reset countdown at ≥80%." \
@@ -100,11 +105,19 @@ prev[16]="${YEL}🧠⨯${R}"
 
 # ---------- one keypress -> token (up/down/esc / "" for enter / literal char) ----------
 read_key() {
-  local k rest
+  local k rest d
   IFS= read -r -s -n 1 k || { printf esc; return; }   # EOF (e.g. closed stdin) -> unwind cleanly
   if [ "$k" = $'\033' ]; then
     IFS= read -r -s -n 2 -t 1 rest 2>/dev/null
-    case "$rest" in '[A') printf up;; '[B') printf down;; *) printf esc;; esac
+    case "$rest" in
+      '[A') printf up;; '[B') printf down;;
+      '') printf esc;;                # a genuinely lone ESC
+      *)  # any other sequence (→/←, Home, End, Delete, PgUp, F-keys): drain and no-op
+          # so a stray arrow doesn't quit and discard in-progress edits, or leak bytes.
+          case "$rest" in *[A-Za-z~]) : ;; *)
+              while IFS= read -r -s -n 1 -t 1 d 2>/dev/null; do case "$d" in [A-Za-z~]) break ;; esac; done ;; esac
+          printf ignore ;;
+    esac
   else printf '%s' "$k"; fi
 }
 anykey() { printf '\n  %spress any key%s' "$DIM" "$R"; IFS= read -r -s -n 1 _ 2>/dev/null; }
@@ -168,14 +181,36 @@ ed_to_spec() {
   elif [ "$alloff" = 1 ]; then echo "NONE"
   else echo "${on# }"; fi
 }
-remove_mode_line() { seed_modes; local tmp="${MODES}.tmp"; grep -v "^${1}|" "$MODES" > "$tmp" 2>/dev/null; mv -f "$tmp" "$MODES"; }
-write_mode() { remove_mode_line "$1"; printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$MODES"; load_modes; }
+# Delete a mode by EXACT first-field match. Using the name as a grep regex could
+# match (and drop) unrelated lines, or wipe the whole file for a name like ".*".
+remove_mode_line() {
+  seed_modes; local tmp="${MODES}.tmp"
+  awk -F'|' -v nm="$1" '$1!=nm' "$MODES" > "$tmp" 2>/dev/null
+  # the file always keeps its header comment, so a non-empty result is expected;
+  # if it somehow came out empty, keep the original rather than wipe it.
+  [ -s "$tmp" ] && mv -f "$tmp" "$MODES" || rm -f "$tmp"
+}
+write_mode() {
+  # strip the '|' field delimiter (and a leading '#', which load_modes treats as a
+  # comment) from the name/description so they can't corrupt the modes file.
+  local nm="${1//|/}" ds="${2//|/}"; nm="${nm#\#}"
+  remove_mode_line "$nm"; printf '%s|%s|%s\n' "$nm" "$ds" "$3" >> "$MODES"; load_modes
+}
 set_default() {                  # $1 = mode index -> make it the new-session default
   spec_to_state "${mode_specs[$1]}"; write_default "${mode_names[$1]}"
 }
 delete_mode() {
   local nm="${mode_names[$1]}"; remove_mode_line "$nm"
-  [ "$CURRENT_MODE" = "$nm" ] && CURRENT_MODE=""
+  if [ "$CURRENT_MODE" = "$nm" ]; then
+    CURRENT_MODE=""
+    # the deleted mode was the global default — clear SL_MODE in the conf too, or the
+    # status-line header keeps naming a mode that no longer exists (re-read every frame).
+    if [ -f "$CONF" ]; then
+      local t ln; t="$(mktemp)"
+      while IFS= read -r ln || [ -n "$ln" ]; do case "$ln" in SL_MODE=*) printf 'SL_MODE=\n' ;; *) printf '%s\n' "$ln" ;; esac; done < "$CONF" > "$t"
+      mv -f "$t" "$CONF"
+    fi
+  fi
   local np=() x; for x in "${picker[@]}"; do [ "$x" != "$nm" ] && np+=("$x"); done   # glob-safe rebuild
   picker=("${np[@]}"); save_picker
   load_modes
@@ -286,7 +321,15 @@ edit_save() {            # $1 = oldname; returns 0 to close editor
   local oldname="$1"
   if [ -z "$EDNAME" ]; then printf '%s' "${ESC}[?25h"; read -rp "  Name this mode (one word): " EDNAME; EDNAME="${EDNAME// /}"; printf '%s' "${ESC}[?25l"; fi
   [ -z "$EDNAME" ] && { printf '\n  %sName required.%s' "$YEL" "$R"; anykey; return 1; }
-  [ -n "$oldname" ] && [ "$oldname" != "$EDNAME" ] && remove_mode_line "$oldname"
+  if [ -n "$oldname" ] && [ "$oldname" != "$EDNAME" ]; then
+    remove_mode_line "$oldname"
+    # a rename must follow into the /mode picker file too, or the renamed mode
+    # vanishes from the picker and its old name lingers as a dead, unremovable entry.
+    if in_picker "$oldname"; then
+      local pp=() x; for x in "${picker[@]}"; do [ "$x" = "$oldname" ] && pp+=("$EDNAME") || pp+=("$x"); done
+      picker=("${pp[@]}"); save_picker
+    fi
+  fi
   write_mode "$EDNAME" "$EDDESC" "$(ed_to_spec)"
   [ -n "$oldname" ] && [ "$CURRENT_MODE" = "$oldname" ] && CURRENT_MODE="$EDNAME"
   # if we edited the current default, refresh the global conf so it stays in sync

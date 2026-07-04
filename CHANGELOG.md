@@ -4,6 +4,35 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.1.1 — 2026-07-04
+
+Bug-fix release.
+
+### Security / data safety
+- The status line no longer `source`s its conf file — a mode name is written into
+  that conf, so a crafted name executed arbitrary shell on **every render**. Toggles
+  are now parsed as strict `KEY=0/1`; the mode name is an inert display string.
+- Mode deletion matches the exact first field (awk) instead of using the name as a
+  grep regex, which could match unrelated lines or wipe the whole modes file.
+- `|` (the field delimiter) and a leading `#` are stripped from mode names/descriptions
+  so they can't corrupt the modes file (which had rendered a blank status line).
+
+### slconfig TUI
+- Ctrl-C exits cleanly and restores the terminal (it was interpreted as Enter — firing
+  the focused action, e.g. overwriting the default mode — and left echo disabled).
+- Right/Left/Home/End/Delete/PgUp no longer quit the editor (and discard edits); only a
+  bare ESC is Esc.
+- Renaming a mode updates the /mode picker file too (renamed mode no longer vanishes).
+- Deleting the current default clears `SL_MODE` in the conf (header no longer names a
+  deleted mode).
+
+### Performance / correctness
+- The hot path extracts all fields in **one** `jq` call instead of 17 (removing ~17
+  fork/exec per render).
+- Reset countdown (⟳) shows only at ≥80%, matching the docs; fixed the "10-cell bar"
+  help text (the bar is 6 cells).
+- `install.sh` seeds the mode presets, so `/mode` works on a fresh install.
+
 ## 1.1.0 — 2026-06-21
 
 - **License & policy:** relicensed to **Apache-2.0** (+ `NOTICE`); added `SECURITY.md`
