@@ -4,6 +4,35 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.2.0 — 2026-07-11
+
+Windows support 🪟
+
+### Added
+- **Native Windows port** in [`windows/`](windows): PowerShell ports of the renderer, the
+  `slconfig` TUI, `/mode` handling, and the updater, plus `windows/install.ps1`. Runs on stock
+  Windows PowerShell 5.1 or pwsh 7 (auto-detected) — **no `jq`, no WSL, no admin**. Config
+  files share the exact same formats across platforms.
+- The Windows installer **copies** the scripts (symlinks need admin on Windows) and records the
+  checkout path in `~\.claude\statusline.repo`; the updater re-copies after every fast-forward
+  pull so updates still propagate. The `/mode` command is generated with absolute paths, and a
+  `slconfig` function is added to the PowerShell profile(s).
+- Truecolor is auto-enabled in Windows Terminal (`WT_SESSION`); legacy conhost gets ANSI (VT)
+  enabled programmatically for the TUI, with 256/16-colour fallback elsewhere.
+- A downloadable **`claude-statusline-windows.zip`** is attached to the GitHub release for
+  git-less installs.
+
+### Fixed / docs
+- README example renders are accurate again: replaced the two-row segment diagram (emoji
+  widths made the underline row misalign on GitHub) with a plain example line + ordered
+  legend; corrected bar fills to match the real `(pct·width+50)/100` maths; added the missing
+  `Updates ▸` row and `u` key hint to the `slconfig` screenshot; updated its stale preview
+  line; removed the `⟳` countdown from the 20% 5-hour example (it only appears at ≥80%).
+- The `slconfig` per-element preview for the 5-hour limit showed a countdown at 62%; it now
+  previews 83%, matching the ≥80% behaviour.
+- SECURITY.md still described the pre-1.1.1 `source`-based conf loading; it now documents the
+  hardened parse-only behaviour on both platforms.
+
 ## 1.1.1 — 2026-07-04
 
 Bug-fix release.
