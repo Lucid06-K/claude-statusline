@@ -83,7 +83,7 @@ $SHORTS = @('current folder (📁 ~\…)',
             '✎ active output style (not default)',
             '↓in ↑out tokens this session',
             '🧠⨯ when extended thinking is off')
-$LONGS = @('The working directory. Home shows as ~, a folder directly under home as ~\name, and anything deeper as the last two path segments (e.g. Projects\petpak).',
+$LONGS = @('The working directory. Home shows as ~, a folder directly under home as ~\name, and anything deeper as the last two path segments (e.g. Projects\poyona).',
            'When inside a git repo: the branch, a * if there are uncommitted changes, and ⇡N/⇣N for commits ahead of / behind upstream. Hidden outside repos; turning it off also skips the git calls (slightly faster).',
            "The active model's display name (e.g. Opus 4.8 (1M context)) in Claude's brand orange.",
            'A ⚡ next to the model only while fast mode (/fast) is active.',
@@ -112,7 +112,7 @@ $script:Picker = @()
 
 # Per-element example renders — shown for whichever option the editor selector sits on.
 $PREV = @(
-  '📁 Projects\petpak',
+  '📁 Projects\poyona',
   "feat/vet $GRN⇡2$R",
   "${ORANGE}Opus 4.8$R",
   "${ORANGE}Opus 4.8$R $YEL⚡$R",

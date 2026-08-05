@@ -15,7 +15,7 @@ Pick what shows, group it into **modes**, and switch modes per session — all f
 </div>
 
 ```
-📁 Projects/petpak | feat/vet ⇡2 | Opus 4.8 ⚡ | xhigh | »«▕█████░▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | $32.00/h | $6.40 | ⏱ 12m | 19:02
+📁 Projects/poyona | feat/vet ⇡2 | Opus 4.8 ⚡ | xhigh | »«▕█████░▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | $32.00/h | $6.40 | ⏱ 12m | 19:02
 ```
 
 Everything is colour-coded, and most segments stay hidden until they're relevant — so a calm session reads short:
@@ -121,7 +121,7 @@ powershell -ExecutionPolicy Bypass -File windows\install.ps1
 The line is built from independent **elements**, each colour-coded and individually toggleable. With everything showing:
 
 ```
-📁 Projects/petpak | feat/vet* ⇡2 | Opus 4.8 ⚡ | 🧠⨯ | xhigh | ✎ Explanatory | »«▕█████░▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | 7d ▕████░░▏ 72% | $32.00/h | $6.40 | ⏱ 12m | 19:02
+📁 Projects/poyona | feat/vet* ⇡2 | Opus 4.8 ⚡ | 🧠⨯ | xhigh | ✎ Explanatory | »«▕█████░▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | 7d ▕████░░▏ 72% | $32.00/h | $6.40 | ⏱ 12m | 19:02
 ```
 
 In order: **directory** · **git** (branch, `*` dirty, `⇡⇣` ahead/behind) · **model** + `⚡` fast mode · `🧠⨯` thinking off · **effort** · `✎` **output style** · **context meter** + `⚠` warning · `↓↑` **tokens** · **5h** and **7d rate limits** (`⟳` reset countdown) · **burn rate** · **cost** · `⏱` **timer** · **clock**.
@@ -191,7 +191,7 @@ Toggle any of these in the `slconfig` editor; colours adapt to your terminal.
 
 | Element | Looks like | Shows / when |
 |---|---|---|
-| **Directory** | `📁 Projects/petpak` | working dir — `~` for home, `~/name` under home, else last two path segments |
+| **Directory** | `📁 Projects/poyona` | working dir — `~` for home, `~/name` under home, else last two path segments |
 | **Git status** | `feat/vet ⇡2` | branch · `*` if dirty · `⇡`/`⇣` ahead of / behind upstream |
 | **Model name** | `Opus 4.8` | active model, in Claude's brand orange |
 | **Fast-mode flag** | `⚡` | only while `/fast` is on |
