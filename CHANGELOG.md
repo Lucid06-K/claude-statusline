@@ -4,6 +4,62 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.2.1 — 2026-08-24
+
+Accuracy and render fixes 🎯
+
+### Fixed
+- **Wrong numbers whenever any field was absent.** The 17 payload fields were joined
+  with tabs and read back with `IFS=$'\t'`, but tab is an IFS *whitespace* character:
+  bash collapses runs of tabs and strips leading/trailing ones, so every field after an
+  empty one shifted left by one. Claude Code omits fields routinely — `effort` only
+  exists on reasoning models, `rate_limits` only after that session's first API response
+  (and `five_hour` / `seven_day` are each optional on their own), and `used_percentage`
+  is null until the first message — so on every session start the line showed a wrong
+  context %, a wrong 5h %, a wrong cost and a wrong elapsed time, then silently corrected
+  itself once the first response landed. Fields are now joined with US (U+001F), which is
+  not IFS whitespace, and every value is scrubbed of US/CR/LF so none can forge a field
+  boundary or a line break.
+- **Rate-limit meters over-reported.** The cross-session cache kept the highest value
+  seen per window on the premise that usage only climbs. The 5h and 7d windows roll, so
+  usage genuinely falls as old activity ages out, and the meters stayed at the peak for
+  the rest of the window. The payload reading now always wins; the cache only fills in
+  for a session that has no reading yet, and never past its own reset.
+- **Progress bars changed width as they filled.** `█` (U+2588) is East Asian Ambiguous
+  and `░` (U+2591) is Neutral, so in any terminal, locale or font that widens ambiguous
+  glyphs the bar grew as it filled and shifted everything after it. The empty cell is now
+  `▒` (U+2592), ambiguous like the block and like both end caps, so the bar occupies the
+  same columns at every fill level.
+- **`⚠` pinned to text presentation** with U+FE0E — it has no default emoji presentation,
+  so width calculations and terminals could disagree and smear the line when the
+  near-compaction warning appeared.
+- **Segment colours no longer cancel the host's dim.** Claude Code renders the status
+  line inside `<Text dimColor>`; the script's `ESC[0m` resets switched that off partway
+  through, so later segments rendered brighter. It now resets the foreground only
+  (`ESC[39m`).
+- **A non-numeric `resets_at`** would abort the countdown arithmetic and write a bash
+  error to the status line's stderr; it is now validated before use.
+- **Elapsed timer restarted on long sessions.** The start marker was pruned at
+  `-mtime +2` on every render, deleting it out from under any session still running after
+  two days. Pruning now happens only when a new session appears, at 14 days.
+- **`ctx:` fallback** used `current_usage.input_tokens`, which excludes cache reads, and
+  read as `ctx:2t` for a 92k-token context. It now uses `total_input_tokens`.
+- **The configurator preview was corrupted** by the same field shift and its sample
+  payload omitted five fields, so the Tokens, Output style and Thinking toggles appeared
+  to do nothing. The sample is now complete.
+- **`session_id` is validated** before being interpolated into a conf path or temp-file
+  name.
+
+### Changed
+- **Renders are ~2.7x faster** (129ms -> 48ms). One `git status --porcelain=v2 --branch`
+  replaces four git invocations, `--no-optional-locks` stops the status line taking
+  `index.lock` several times a second against the user's own git commands, burn rate and
+  cost colour are computed in the existing `jq` pass instead of forking `awk`, and the
+  three `date` calls and the per-render `find` are gone.
+- Token counts are documented for what they are: `↓` is what is in the context window
+  right now (cache reads included) and `↑` is the most recent API response, not session
+  totals.
+
 ## 1.2.0 — 2026-07-11
 
 Windows support 🪟

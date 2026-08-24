@@ -15,13 +15,13 @@ Pick what shows, group it into **modes**, and switch modes per session — all f
 </div>
 
 ```
-📁 Projects/poyona | feat/vet ⇡2 | Opus 4.8 ⚡ | xhigh | »«▕█████░▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | $32.00/h | $6.40 | ⏱ 12m | 19:02
+📁 Projects/poyona | feat/vet ⇡2 | Opus 4.8 ⚡ | xhigh | »«▕█████▒▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | $32.00/h | $6.40 | ⏱ 12m | 19:02
 ```
 
 Everything is colour-coded, and most segments stay hidden until they're relevant — so a calm session reads short:
 
 ```
-📁 ~ | Opus 4.8 | high | »«▕█░░░░░▏ 12% | $1.20/h | $0.01 | ⏱ 4s | 19:03
+📁 ~ | Opus 4.8 | high | »«▕█▒▒▒▒▒▏ 12% | $1.20/h | $0.01 | ⏱ 4s | 19:03
 ```
 
 ---
@@ -121,7 +121,7 @@ powershell -ExecutionPolicy Bypass -File windows\install.ps1
 The line is built from independent **elements**, each colour-coded and individually toggleable. With everything showing:
 
 ```
-📁 Projects/poyona | feat/vet* ⇡2 | Opus 4.8 ⚡ | 🧠⨯ | xhigh | ✎ Explanatory | »«▕█████░▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | 7d ▕████░░▏ 72% | $32.00/h | $6.40 | ⏱ 12m | 19:02
+📁 Projects/poyona | feat/vet* ⇡2 | Opus 4.8 ⚡ | 🧠⨯ | xhigh | ✎ Explanatory | »«▕█████▒▏ 88% ⚠ | ↓1.9M ↑42k | 5h ▕██████▏ 100% ⟳ 46m | 7d ▕████▒▒▏ 72% | $32.00/h | $6.40 | ⏱ 12m | 19:02
 ```
 
 In order: **directory** · **git** (branch, `*` dirty, `⇡⇣` ahead/behind) · **model** + `⚡` fast mode · `🧠⨯` thinking off · **effort** · `✎` **output style** · **context meter** + `⚠` warning · `↓↑` **tokens** · **5h** and **7d rate limits** (`⟳` reset countdown) · **burn rate** · **cost** · `⏱` **timer** · **clock**.
@@ -154,7 +154,7 @@ Run `slconfig` for an arrow-key menu. The highlighted mode previews its full sta
      + Create new mode
      Quit
   ──────────────────────────────────────────────────────────
-  render  📁 ~ | Opus 4.8 (1M context) ⚡ | xhigh | »«▕█████░▏ 88% ⚠ | 5h ▕██████▏ 100% ⟳ 47m | 7d ▕████░░▏ 72% | $32.00/h | $6.40 | ⏱ 0s | 19:02
+  render  📁 ~ | Opus 4.8 (1M context) ⚡ | xhigh | »«▕█████▒▏ 88% ⚠ | 5h ▕██████▏ 100% ⟳ 47m | 7d ▕████▒▒▏ 72% | $32.00/h | $6.40 | ⏱ 0s | 19:02
   ↑/↓ move · enter set default · g picker · u updates · e edit · c new · d delete · p preview · q quit
 ```
 
@@ -198,18 +198,18 @@ Toggle any of these in the `slconfig` editor; colours adapt to your terminal.
 | **Thinking off** | `🧠⨯` | only when extended thinking is disabled |
 | **Reasoning effort** | `xhigh` | effort level, coloured like the `/effort` selector |
 | **Output style** | `✎ Explanatory` | only when the output style isn't `default` |
-| **Context meter** | `»«▕█████░▏ 88%` | context-window fill; bar green → yellow → red |
+| **Context meter** | `»«▕█████▒▏ 88%` | context-window fill; bar green → yellow → red |
 | **Context warning** | `⚠` | appended once context ≥85% (near auto-compact) |
-| **5-hour limit** | `5h ▕█░░░░░▏ 20%` | rolling 5h usage; a `⟳` reset countdown appears at ≥80% |
-| **7-day limit** | `7d ▕████░░▏ 72%` | rolling 7d usage; appears only ≥50% |
+| **5-hour limit** | `5h ▕█▒▒▒▒▒▏ 20%` | rolling 5h usage; a `⟳` reset countdown appears at ≥80% |
+| **7-day limit** | `7d ▕████▒▒▏ 72%` | rolling 7d usage; appears only ≥50% |
 | **Burn rate** | `$11.20/h` | spend per active hour |
 | **Session cost** | `$6.40` | total spent this session |
 | **Cost color** | *(tints `$`)* | dim < \$2 · yellow ≥ \$2 · red ≥ \$5 |
 | **Session timer** | `⏱ 12m` | wall-clock since the session began |
-| **Tokens** | `↓37k ↑264` | input / output tokens this session (k/M) |
+| **Tokens** | `↓37k ↑264` | ↓ tokens in the context window right now (cache reads included), ↑ the last response (k/M) |
 | **Clock** | `19:02` | current time |
 
-> **Rate-limit sync** — usage only climbs within a window, so the meters record the highest value any session has seen (keyed by reset time) and show that everywhere — no drift between sessions.
+> **Rate-limit sync** — the 5h and 7d windows roll, so usage falls again as old activity ages out and the reading Claude Code sends is always the one shown. Each reading is cached (keyed by reset time) purely so a session that has none yet — `rate_limits` is absent until that session's first API response — can still show the account-wide number instead of a gap. A cached value is never used past its own reset.
 
 ---
 

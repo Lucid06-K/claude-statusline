@@ -76,7 +76,7 @@ longs=(  "The working directory. Home shows as ~, a folder directly under home a
          "A ⏱ timer counting wall-clock time since the session began (via a small marker file, auto-cleaned after 2 days)." \
          "The current clock time (HH:MM)." \
          "The active output style (e.g. Explanatory, Learning) shown with a ✎. Hidden when it's the default style." \
-         "Tokens used this session — ↓ total input and ↑ total output, abbreviated (k/M)." \
+         "Token counts — ↓ what is in the context window now (cache reads included) and ↑ the last response, abbreviated (k/M)." \
          "A 🧠⨯ shown only when extended thinking is turned off (it's normally on)." )
 
 n=${#keys[@]}
@@ -241,7 +241,9 @@ toggle_picker() {                # $1 = mode name; returns 1 if blocked by the 4
 render_sample() {                # $1 = optional conf path. Runs in an isolated TMPDIR so it
   local sid="preview-$$" r5 json td  #     never touches the real session timer / rate-limit cache.
   r5=$(( $(date +%s) + 2820 )); td="$(mktemp -d 2>/dev/null)"
-  json=$(printf '{"session_id":"%s","cwd":"%s","effort":{"level":"xhigh"},"model":{"display_name":"Opus 4.8 (1M context)"},"workspace":{"current_dir":"%s"},"context_window":{"used_percentage":88},"fast_mode":true,"cost":{"total_cost_usd":6.40,"total_duration_ms":720000},"rate_limits":{"five_hour":{"used_percentage":100,"resets_at":%s},"seven_day":{"used_percentage":72,"resets_at":%s}}}' "$sid" "$HOME" "$HOME" "$r5" "$r5")
+  # Every field the status line can read must be present, or the toggles for the missing
+  # ones look broken in the preview (nothing changes when you switch them on).
+  json=$(printf '{"session_id":"%s","cwd":"%s","effort":{"level":"xhigh"},"model":{"display_name":"Opus 4.8 (1M context)"},"workspace":{"current_dir":"%s"},"output_style":{"name":"Explanatory"},"thinking":{"enabled":false},"context_window":{"used_percentage":88,"total_input_tokens":176000,"total_output_tokens":12400,"current_usage":{"input_tokens":176000}},"fast_mode":true,"cost":{"total_cost_usd":6.40,"total_duration_ms":720000},"rate_limits":{"five_hour":{"used_percentage":100,"resets_at":%s},"seven_day":{"used_percentage":72,"resets_at":%s}}}' "$sid" "$HOME" "$HOME" "$r5" "$r5")
   if [ -n "$1" ]; then printf '%s' "$json" | TMPDIR="$td" SL_CONF="$1" COLORTERM="${COLORTERM:-truecolor}" bash "$SL"
   else                 printf '%s' "$json" | TMPDIR="$td"               COLORTERM="${COLORTERM:-truecolor}" bash "$SL"; fi
   rm -rf "$td" 2>/dev/null
