@@ -202,12 +202,17 @@ Toggle any of these in the `slconfig` editor; colours adapt to your terminal.
 | **Context warning** | `⚠` | appended once context ≥85% (near auto-compact) |
 | **5-hour limit** | `5h ▕█▒▒▒▒▒▏ 20%` | rolling 5h usage; a `⟳` reset countdown appears at ≥80% |
 | **7-day limit** | `7d ▕████▒▒▏ 72%` | rolling 7d usage; appears only ≥50% |
+| **Per-model limit** | `Fable ▕██▒▒▒▒▏ 34%` | weekly cap for one model (Fable / Opus / Sonnet); off by default, needs a network call |
 | **Burn rate** | `$11.20/h` | spend per active hour |
 | **Session cost** | `$6.40` | total spent this session |
 | **Cost color** | *(tints `$`)* | dim < \$2 · yellow ≥ \$2 · red ≥ \$5 |
 | **Session timer** | `⏱ 12m` | wall-clock since the session began |
 | **Tokens** | `↓37k ↑264` | ↓ tokens in the context window right now (cache reads included), ↑ the last response (k/M) |
 | **Clock** | `19:02` | current time |
+
+> **Per-model limits:** Claude Code's status-line payload carries only the account-wide `five_hour` and `seven_day` windows; the per-model weekly caps that `/usage` shows as *"Current week (Fable 5)"* are not in it. So this one element is fetched: `statusline-usage.sh` calls the same endpoint `/usage` does, using the OAuth token already in your login keychain, at most **once every 5 minutes**, and writes a small cache the renderer reads. The token is never printed, never written to disk, and is passed to `curl` through a config file on stdin so it stays out of `ps`. It is **off by default** (`SL_MODEL_LIMIT`); nothing is shown until a fetch succeeds, and a cache older than an hour is ignored rather than shown stale. The endpoint is internal to Claude Code, so treat it as best-effort: if its shape changes the element simply disappears.
+>
+> First run needs one manual approval: run `bash ~/.claude/statusline-usage.sh --show` in a terminal and click **Always Allow** on the keychain prompt. `--raw` prints the endpoint's raw JSON (never the token), `--cache` prints the current cache.
 
 > **Rate-limit sync** — the 5h and 7d windows roll, so usage falls again as old activity ages out and the reading Claude Code sends is always the one shown. Each reading is cached (keyed by reset time) purely so a session that has none yet — `rate_limits` is absent until that session's first API response — can still show the account-wide number instead of a gap. A cached value is never used past its own reset.
 

@@ -4,6 +4,46 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.3.0 — 2026-08-26
+
+Per-model weekly limits (Fable / Opus / Sonnet) 📊
+
+### Added
+- **Per-model weekly limit element** (`SL_MODEL_LIMIT`, off by default). Renders the
+  weekly cap for a specific model as a bar + %, e.g. `Fable ▕██▒▒▒▒▏ 34%`, with a `⟳`
+  reset countdown at ≥80%, matching the 5h/7d meters. Claude Code's status-line payload
+  cannot supply this: its `rate_limits` object is built from exactly two fields,
+  `five_hour` and `seven_day` (verified in 2.1.246), while the per-model windows that
+  `/usage` renders as *"Current week (Fable 5)"* only exist on its internal control
+  protocol. So `statusline-usage.sh` (new) asks the same endpoint `/usage` does,
+  `GET /api/oauth/usage`, using the OAuth token already in the login keychain.
+  - Throttled to one fetch per 5 minutes across all sessions: the renderer claims the
+    slot by stamping the throttle file *before* forking, so ten open sessions produce
+    one request, not ten.
+  - The fetch is detached and never blocks a render; the renderer only reads a small
+    cache file. A cache older than an hour is ignored rather than shown stale.
+  - The token is never printed, never written to disk, and reaches `curl` through a
+    config file on stdin, so it stays out of the process argument list.
+  - Parsing is deliberately shape-tolerant, and accepts either 0-1 or 0-100 values,
+    because the endpoint is internal and undocumented. If its shape changes the element
+    disappears instead of breaking the line.
+  - `statusline-usage.sh --show` prints what was parsed, `--raw` the raw JSON (never the
+    token), `--cache` the current cache. The first run needs one keychain approval.
+
+### Fixed
+- **A missing throttle file printed a shell error into the status line.** `read -r x <
+  "$f" 2>/dev/null` applies its redirections left to right, so the failing input
+  redirect wrote "No such file or directory" to the real stderr before `2>/dev/null`
+  was ever installed. Both throttle reads are now wrapped as `{ read -r x < "$f"; }
+  2>/dev/null`. Visible on the very first render after the auto-update check was
+  enabled.
+
+### Added (debugging)
+- `~/.claude/statusline.dump` (touch the file to arm it) writes each render's raw stdin
+  payload to `$TMPDIR/cc-statusline/dump-<session-id>.json`. One `[ -f ]` test per
+  render when unarmed. Useful for checking what Claude Code actually sends, e.g. when
+  the context meter disagrees with `/context`.
+
 ## 1.2.1 — 2026-08-24
 
 Accuracy and render fixes 🎯

@@ -2,7 +2,7 @@
 # format:  name|description|ON-keys (space separated; ALL = everything, NONE = nothing)
 full|Everything on|ALL
 work|Coding essentials — path, git, model, effort, context|SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_CLOCK
-cost|Watch spend & rate limits|SL_DIRECTORY SL_MODEL SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_CLOCK
+cost|Watch spend & rate limits|SL_DIRECTORY SL_MODEL SL_RATELIMIT_5H SL_RATELIMIT_7D SL_MODEL_LIMIT SL_BURNRATE SL_COST SL_COST_COLOR SL_CLOCK
 minimal|Path, git, model, clock|SL_DIRECTORY SL_GIT SL_MODEL SL_CLOCK
 focus|Just enough to stay oriented|SL_DIRECTORY SL_MODEL SL_EFFORT
 zen|Nothing — a clean, empty line|NONE

@@ -106,6 +106,8 @@ SL_DIRECTORY=1; SL_GIT=1; SL_MODEL=1; SL_FASTMODE=1; SL_EFFORT=1
 SL_CONTEXT=1; SL_CONTEXT_WARN=1; SL_RATELIMIT_5H=1; SL_RATELIMIT_7D=1
 SL_BURNRATE=1; SL_COST=1; SL_COST_COLOR=1; SL_ELAPSED=1; SL_CLOCK=1
 SL_OUTPUTSTYLE=1; SL_TOKENS=1; SL_THINKING=1
+# Off by default: it is the one element that needs a network call (see statusline-usage.sh).
+SL_MODEL_LIMIT=0
 
 # The session id keys a conf path and a temp file, so it must be a plain token. Anything
 # else is treated as "no session" rather than interpolated into a path.
@@ -136,13 +138,14 @@ fi
 # --- Shared state dir (session start marks + rate-limit cache) ---
 STATE_DIR="${TMPDIR:-/tmp}/cc-statusline"
 mkdir -p "$STATE_DIR" 2>/dev/null
+[ -f "$HOME/.claude/statusline.dump" ] && printf '%s' "$input" > "$STATE_DIR/dump-${session_id:-none}.json" 2>/dev/null
 
 # --- Daily auto-update (opt-in: ~/.claude/statusline.auto-update) ---
 # Cheap throttle (one builtin read) every render; once a day it detaches a background
 # fast-forward pull so it never blocks or slows the status line.
 if [ -f "${HOME}/.claude/statusline.auto-update" ]; then
   _ust="${HOME}/.claude/statusline.update-check"; _uwas=""
-  read -r _uwas < "$_ust" 2>/dev/null
+  { read -r _uwas < "$_ust"; } 2>/dev/null
   if [ "$_uwas" != "$TODAY" ]; then
     printf '%s' "$TODAY" > "$_ust" 2>/dev/null
     ( bash "${HOME}/.claude/statusline-update.sh" --background >/dev/null 2>&1 & ) >/dev/null 2>&1
@@ -341,6 +344,48 @@ if [ -n "$rp7" ] && [ "$rp7" -ge 50 ] 2>/dev/null; then
   fi
 fi
 
+# --- Segment: Per-model weekly limit (Fable / Opus / Sonnet caps) ---
+# Claude Code never sends these: its status-line payload carries five_hour and seven_day
+# and nothing else. statusline-usage.sh fetches them from the endpoint /usage itself uses
+# and leaves a cache here; this reads that cache (no network, no forks) and kicks off a
+# refresh in the background at most once every USAGE_TTL seconds.
+mlim_seg=""
+if [ "$SL_MODEL_LIMIT" = 1 ]; then
+  USAGE_TTL=300                                   # refresh at most every 5 minutes
+  USAGE_MAX_AGE=3600                              # older than this, show nothing rather than a lie
+  _ustamp=0; { read -r _ustamp < "$STATE_DIR/usage-fetch"; } 2>/dev/null
+  case "${_ustamp:-}" in ''|*[!0-9]*) _ustamp=0 ;; esac
+  if [ $(( NOW - _ustamp )) -ge "$USAGE_TTL" ]; then
+    printf '%s' "$NOW" > "$STATE_DIR/usage-fetch" 2>/dev/null   # claim the slot before forking,
+                                                                # so N sessions rendering at once
+                                                                # spawn one fetch, not N
+    ( bash "${HOME}/.claude/statusline-usage.sh" >/dev/null 2>&1 & ) >/dev/null 2>&1
+  fi
+  if [ -f "$STATE_DIR/usage-scoped" ]; then
+    _ufetched=0; _uparts=()
+    while IFS=$'\t' read -r _uname _upct _ureset || [ -n "$_uname" ]; do
+      if [ "$_ufetched" = 0 ]; then                # first line is the fetch timestamp
+        case "$_uname" in ''|*[!0-9]*) break ;; esac
+        _ufetched="$_uname"
+        [ $(( NOW - _ufetched )) -ge "$USAGE_MAX_AGE" ] && break
+        continue
+      fi
+      case "${_upct:-}" in ''|*[!0-9]*) continue ;; esac
+      _ulabel="${_uname%% *}"                      # "Fable 5" -> "Fable"
+      _useg="${_ulabel} $(mk_bar "$_upct" 6) ${_upct}%"
+      if [ "$_upct" -ge 80 ] 2>/dev/null; then
+        _ueta=$(fmt_eta "${_ureset:-}")
+        [ -n "$_ueta" ] && _useg="${_useg} ${ESC}[90m⟳ ${_ueta}${RESET}"
+      fi
+      _uparts+=("$_useg")
+    done < "$STATE_DIR/usage-scoped"
+    if [ "${#_uparts[@]}" -gt 0 ]; then
+      mlim_seg="${_uparts[0]}"
+      for ((_i=1; _i<${#_uparts[@]}; _i++)); do mlim_seg="${mlim_seg} ${_uparts[$_i]}"; done
+    fi
+  fi
+fi
+
 # --- Segment: Burn rate ($ per active hour) ---
 burn_seg=""
 [ -n "$burn_raw" ] && burn_seg="$(printf '$%.2f/h' "$burn_raw" 2>/dev/null)"
@@ -397,6 +442,7 @@ parts=()
 [ "$SL_TOKENS"       = 1 ] && [ -n "$tokens_seg"   ] && parts+=("${tokens_seg}")
 [ "$SL_RATELIMIT_5H" = 1 ] && [ -n "$rl_seg"       ] && parts+=("${rl_seg}")
 [ "$SL_RATELIMIT_7D" = 1 ] && [ -n "$rl7_seg"      ] && parts+=("${rl7_seg}")
+[ "$SL_MODEL_LIMIT"  = 1 ] && [ -n "$mlim_seg"     ] && parts+=("${mlim_seg}")
 [ "$SL_BURNRATE"     = 1 ] && [ -n "$burn_seg"     ] && parts+=("${burn_seg}")
 [ "$SL_COST"         = 1 ] && [ -n "$cost_seg"     ] && parts+=("${cost_seg}")
 [ "$SL_ELAPSED"      = 1 ] && [ -n "$elapsed_seg"  ] && parts+=("${elapsed_seg}")
