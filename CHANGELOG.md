@@ -4,6 +4,26 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.3.1 — 2026-08-26
+
+Makes 1.3.0 actually fetch 🔑
+
+### Fixed
+- **The keychain lookup found the wrong item, so the fetch always came back tokenless.**
+  Two generic-password items share the service name `Claude Code-credentials`: the one
+  keyed to your username holds `claudeAiOauth`, and a second one (account `unknown`)
+  holds only per-server `mcpOAuth` tokens. Looking up by service alone returned whichever
+  the keychain handed back first, which was the MCP one. It now asks for the username
+  account first, the way Claude Code itself does, and falls back to a service-only match.
+- **`percent` is already 0-100, and was being halved-into-nonsense by the fraction
+  heuristic.** The live response returns `{kind, group, is_active, percent, resets_at,
+  scope, severity}` with `percent: 15`, so it is now used as-is; the 0-1 scaling applies
+  only to the `utilization` alias, which is the field Claude Code reads elsewhere.
+- **Reset countdowns never appeared.** `resets_at` arrives as
+  `2026-09-01T14:00:00.246196+00:00`, and jq's `fromdateiso8601` rejects both the
+  fractional seconds and the numeric offset, so every timestamp fell back to 0. Both are
+  normalised away now and the offset is re-applied by hand.
+
 ## 1.3.0 — 2026-08-26
 
 Per-model weekly limits (Fable / Opus / Sonnet) 📊
