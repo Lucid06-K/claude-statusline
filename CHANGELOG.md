@@ -4,6 +4,37 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.3.2 - 2026-09-29
+
+Brings `/mode` in step with 1.3.0.
+
+### Fixed
+- **`/mode` never enabled the per-model weekly limit.** `statusline-mode.sh` carried its own key
+  list, which 1.3.0 forgot to extend, so every conf it wrote lacked `SL_MODEL_LIMIT` and the
+  renderer defaulted it to 0: `/mode full` (ALL) silently skipped the element and a `cost` preset
+  naming the key had no effect. The key is in the list now. A conf without it still reads as off,
+  so sessions that never asked for the element see no change. The PowerShell port has no
+  per-model limit element yet, so its key lists are unchanged on purpose.
+- `statusline-mode.sh` now applies the renderer's session-id check (`[A-Za-z0-9._-]`, else no id),
+  so both agree on which per-session conf they use; the Windows port already did.
+
+### Changed
+- **`/mode` command text trimmed** (repo `mode.md`, mirrored in `windows/install.ps1`): the
+  shouting paragraph added in b2191b3 (claude-commands d277c9b) for an older model is one plain
+  sentence, the `--show` step is gone (`--picker` already excludes the current mode) and the
+  picker no longer asks the model to invent a `preview` sketch. A real preview would need
+  `statusline-config.sh`'s `render_sample` run once per option with its ANSI colour escapes and
+  Unicode bars stripped, four renders per picker; dropping the field was the cheaper choice. The
+  command now carries the gotchas that matter inside a session instead: no session id means a
+  global write, session confs older than 7 days are garbage-collected on every write, and the
+  picker hides the effective mode.
+- Plain punctuation replaces the em dashes in the conf header comment and the no-session message.
+
+### Upgrade note
+- A `statusline.modes` file created before 1.3.0 has no `SL_MODEL_LIMIT` in its `cost` line; add
+  it there (or through `slconfig`) to match `statusline.modes.example`. Leave customised presets
+  as they are.
+
 ## 1.3.1 — 2026-08-26
 
 Makes 1.3.0 actually fetch 🔑

@@ -39,7 +39,8 @@ $repoRoot = if ($parent -and (Test-Path -LiteralPath (Join-Path $parent 'statusl
 [System.IO.File]::WriteAllText((Join-Path $DEST 'statusline.repo'), $repoRoot)
 Say "✓ recorded repo location for updates ($repoRoot)"
 
-# 3) /mode command — generated with absolute paths (no symlinks on Windows)
+# 3) /mode command, generated with absolute paths (no symlinks on Windows).
+#    Keep this text in step with ../mode.md (a wording port: ~\ paths, statusline-mode.ps1, __MODECMD__).
 $modeScript = Join-Path $DEST 'statusline-mode.ps1'
 $modeCmd = "$engine -NoProfile -ExecutionPolicy Bypass -File `"$modeScript`""
 $modeMd = @'
@@ -47,42 +48,42 @@ $modeMd = @'
 description: Switch the status line preset (mode) for THIS Claude session
 ---
 
-Set the status line **mode** (preset) for the current session.
+Set the status line mode (preset) for the current session.
 
 Context:
-- Modes are defined in `~\.claude\statusline.modes`.
-- The current session id is in `$CLAUDE_CODE_SESSION_ID` (env var `CLAUDE_CODE_SESSION_ID`).
-- `statusline-mode.ps1` resolves a mode and writes a per-session conf
-  (`~\.claude\statusline.sessions\<id>.conf`) the status line reads for this session only.
-- The global default is managed separately with `slconfig`.
+- Modes live in `~\.claude\statusline.modes` as `name|description|ON-keys` (`ALL` = everything, `NONE` = nothing);
+  `~\.claude\statusline.picker` is the curated picker list (`slconfig` -> g).
+- `statusline-mode.ps1` does every write. Subcommands: `<mode>`, `--picker`, `--list`, `--show`,
+  `--clear` (also `clear` / `default` / `reset`), `--global <mode>`.
+- It writes `~\.claude\statusline.sessions\<id>.conf` for the id in env var `CLAUDE_CODE_SESSION_ID`; the renderer
+  prefers that over the global `~\.claude\statusline.conf` (managed by `slconfig`). The change shows on the next
+  status line refresh.
 
 Argument the user passed (may be empty): `$ARGUMENTS`
 
-## If `$ARGUMENTS` is empty (or `list` / `pick`) → SHOW THE PICKER
+## Empty (or `list` / `pick`): the picker
+Bare `/mode` means the picker: call `AskUserQuestion`; never print the modes as text.
+1. `__MODECMD__ --picker` prints `name|description` lines: the curated modes minus the one this session is on,
+   capped at 4 (AskUserQuestion's option limit).
+2. Call `AskUserQuestion` with one question, header `Mode`, one option per line: `label` = the name,
+   `description` = the description. If `--picker` prints nothing, fall back to `--list` and offer up to 4.
+3. Run `__MODECMD__ "<chosen name>"` and confirm in one line.
 
-**You MUST open an interactive picker using the `AskUserQuestion` tool. Do NOT print the
-modes as a text list, and do NOT answer in prose — the whole point of bare `/mode` is the picker.**
+## `clear` / `default` / `reset`
+Run `__MODECMD__ --clear` and confirm the session follows the global default again.
 
-1. Run `__MODECMD__ --picker` → it prints `name|description` lines
-   (the user's curated modes, current one already excluded, capped at 4).
-2. Run `__MODECMD__ --show` → note the current mode (context only).
-3. **Call `AskUserQuestion`** with a single question, header `Mode`, and **one option per
-   `--picker` line**: `label` = the name, `description` = the description, and `preview` =
-   a short plain-text sketch of that mode's status line. (If `--picker` returns nothing,
-   fall back to `__MODECMD__ --list` and offer up to 4 modes.)
-4. After the user picks, run `__MODECMD__ "<chosen name>"` and confirm
-   in one short line.
+## Otherwise (a mode name)
+Run `__MODECMD__ "$ARGUMENTS"` and confirm in one line; on "Unknown mode", open the picker.
 
-## If `$ARGUMENTS` is `clear` / `default` / `reset`
-
-Run `__MODECMD__ --clear` and confirm the session reverts to the global default.
-
-## Otherwise (a mode name was given)
-
-Run `__MODECMD__ "$ARGUMENTS"`. On success confirm in one line; if it
-reports "Unknown mode", call `AskUserQuestion` with the available modes so they can pick.
-
-Never edit files directly — always go through `statusline-mode.ps1`.
+Gotchas:
+- Never edit conf files directly. The renderer parses strict `KEY=0/1` lines: unknown keys are ignored and a
+  missing key shows that element ON.
+- Without `CLAUDE_CODE_SESSION_ID` (set inside Claude Code's shell tool, absent in a plain terminal or hook) the
+  script writes the GLOBAL default instead and says so; read its confirmation line before reporting.
+- Every write deletes session confs older than 7 days, so a week-old session loses its override on the next
+  `/mode` from any session.
+- `--picker` hides the effective mode (the global default's mode when this session has no override), so the
+  `--list` fallback only fires when the modes file is empty or every curated mode equals the current one.
 '@
 $modeMd = $modeMd.Replace('__MODECMD__', $modeCmd)
 [System.IO.File]::WriteAllText((Join-Path $DEST 'commands\mode.md'), $modeMd)

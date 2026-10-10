@@ -12,8 +12,10 @@ MODES="${HOME}/.claude/statusline.modes"
 GLOBAL="${HOME}/.claude/statusline.conf"
 SESSDIR="${HOME}/.claude/statusline.sessions"
 PICKER="${HOME}/.claude/statusline.picker"   # modes chosen (in slconfig) to show in the /mode picker
-KEYS="SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK SL_OUTPUTSTYLE SL_TOKENS SL_THINKING"
+# every element key; keep in step with keys=( ) in statusline-config.sh and the defaults in statusline-command.sh
+KEYS="SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK SL_OUTPUTSTYLE SL_TOKENS SL_THINKING SL_MODEL_LIMIT"
 sid="${CLAUDE_CODE_SESSION_ID:-}"
+case "$sid" in ''|.|..|*[!A-Za-z0-9._-]*) sid="" ;; esac   # same check as the renderer, so both use one conf path
 
 list_modes() { [ -f "$MODES" ] && grep -vE '^[[:space:]]*#' "$MODES" | awk -F'|' 'NF>=2{printf "  %-10s %s\n",$1,$2}'; }
 # names of modes to surface in the /mode picker (slconfig's selection, in modes-file order;
@@ -35,7 +37,7 @@ write_conf() {   # $1 = mode name   $2 = target conf path
   if [ -z "$spec" ]; then echo "Unknown mode: '$1'. Available:"; list_modes; return 1; fi
   case "$spec" in ALL) on="$KEYS";; NONE) on="";; *) on="$spec";; esac
   mkdir -p "$(dirname "$2")"
-  { echo "# status line conf — managed by /mode"
+  { echo "# status line conf - managed by /mode"
     echo "SL_MODE=$1"
     local k; for k in $KEYS; do
       case " $on " in *" $k "*) echo "$k=1";; *) echo "$k=0";; esac
@@ -81,7 +83,7 @@ case "${1:-}" in
     if [ -n "$sid" ]; then
       write_conf "$1" "$(sess_conf)" && echo "This session is now using '$1' (applies on the next status line refresh)."
     else
-      write_conf "$1" "$GLOBAL" && echo "No session id detected — set the global default to '$1'."
+      write_conf "$1" "$GLOBAL" && echo "No session id detected: set the global default to '$1'."
     fi
     ;;
 esac
