@@ -52,7 +52,7 @@ shorts=( "current folder (📁 ~/…)" \
          "context-window bar + %" \
          "⚠ when context is near auto-compact" \
          "rolling 5-hour usage meter" \
-         "rolling 7-day usage meter (when high)" \
+         "weekly allowance meter (rolling 7 days)" \
          "spend rate, \$ per active hour" \
          "total \$ spent this session" \
          "tint the \$ as spend climbs" \
@@ -70,7 +70,7 @@ longs=(  "The working directory. Home shows as ~, a folder directly under home a
          "A 6-cell bar + percentage of how full the context window is, shifting green → yellow → red as it fills." \
          "A red ⚠ on the context meter once usage passes 85% — i.e. you're close to an automatic /compact." \
          "How much of your plan's rolling 5-hour allowance is spent (bar + %). At ≥80% it shows a ⟳ reset countdown. Hitting 100% is what triggers 'Now using usage credits'." \
-         "Same meter for the rolling 7-day window. Hidden until 50% so it only shows when it matters; reset countdown at ≥80%." \
+         "Your weekly allowance: the same meter for the rolling 7-day window, always shown once Claude Code has sent a reading. Reset countdown at ≥80%." \
          "Spend velocity: dollars per hour of active processing time (cost ÷ active duration)." \
          "Total dollars spent in this session so far." \
          "Tints the cost figure with spend: dim under \$2, yellow at ≥\$2, red at ≥\$5. Off = plain text." \

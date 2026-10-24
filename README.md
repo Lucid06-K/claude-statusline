@@ -126,7 +126,7 @@ The line is built from independent **elements**, each colour-coded and individua
 
 In order: **directory** · **git** (branch, `*` dirty, `⇡⇣` ahead/behind) · **model** + `⚡` fast mode · `🧠⨯` thinking off · **effort** · `✎` **output style** · **context meter** + `⚠` warning · `↓↑` **tokens** · **5h** and **7d rate limits** (`⟳` reset countdown) · **burn rate** · **cost** · `⏱` **timer** · **clock**.
 
-Most are hidden unless they matter: the **context warning** (`⚠`) only at ≥85%, the **7-day meter** only ≥50%, **reset countdowns** (`⟳`) only when high, **`⚡`** only in fast mode, **`🧠⨯`** only when thinking is off, **`✎`** only for a non-default output style. See the [full reference](#element-reference).
+Most are hidden unless they matter: the **context warning** (`⚠`) only at ≥85%, **reset countdowns** (`⟳`) only when high, **`⚡`** only in fast mode, **`🧠⨯`** only when thinking is off, **`✎`** only for a non-default output style. See the [full reference](#element-reference).
 
 ---
 
@@ -201,7 +201,7 @@ Toggle any of these in the `slconfig` editor; colours adapt to your terminal.
 | **Context meter** | `»«▕█████▒▏ 88%` | context-window fill; bar green → yellow → red |
 | **Context warning** | `⚠` | appended once context ≥85% (near auto-compact) |
 | **5-hour limit** | `5h ▕█▒▒▒▒▒▏ 20%` | rolling 5h usage; a `⟳` reset countdown appears at ≥80% |
-| **7-day limit** | `7d ▕████▒▒▏ 72%` | rolling 7d usage; appears only ≥50% |
+| **7-day limit** | `7d ▕██▒▒▒▒▏ 36%` | weekly allowance used (rolling 7 days); `⟳` reset countdown at ≥80% |
 | **Per-model limit** | `Fable ▕██▒▒▒▒▏ 34%` | weekly cap for one model (Fable / Opus / Sonnet); off by default, needs a network call |
 | **Burn rate** | `$11.20/h` | spend per active hour |
 | **Session cost** | `$6.40` | total spent this session |
@@ -222,7 +222,7 @@ Toggle any of these in the `slconfig` editor; colours adapt to your terminal.
 
 - **Modes** — create/edit/delete entirely in `slconfig`; stored in `~/.claude/statusline.modes` (hand-editable: `name|description|ON-keys`, or `ALL`/`NONE`).
 - **`/mode` picker** — `slconfig` → **g** (up to 5 modes).
-- **Thresholds** — the cost tint (`$2`/`$5`), context-warning cutoff (`85%`), and 7-day reveal (`50%`) are plain constants near the top of the relevant segment in `statusline-command.sh` (or `windows/statusline-command.ps1`).
+- **Thresholds** — the cost tint (`$2`/`$5`), context-warning cutoff (`85%`), and reset-countdown cutoff (`80%`) are plain constants near the top of the relevant segment in `statusline-command.sh` (or `windows/statusline-command.ps1`).
 - **Compaction symbol** — the context meter is prefixed with `»«`; change it in one line in the renderer.
 
 ---

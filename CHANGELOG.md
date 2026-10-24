@@ -4,6 +4,15 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.4.0 - 2026-10-24
+
+### Changed
+- **The 7-day meter is now a weekly allowance bar that is always shown.** It used to stay hidden
+  until the week was 50% used, so switching the element on usually showed nothing at all. It now
+  appears as soon as Claude Code has sent a 7-day reading (or another session has shared one),
+  like the 5-hour meter. The `⟳` reset countdown still waits until ≥80%. Same change in the
+  PowerShell port; slconfig and README descriptions updated to match.
+
 ## 1.3.2 - 2026-09-29
 
 Brings `/mode` in step with 1.3.0.

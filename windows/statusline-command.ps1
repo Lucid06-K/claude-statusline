@@ -270,16 +270,14 @@ if ($null -ne $rl5Pct -and "$rl5Pct" -ne '') {
   if ($rp -ge 80 -and $null -ne $ep5) { $rlSeg += " $E[90m⟳ $(fmt_eta $ep5)$RESET" }
 }
 
-# --- segment: 7-day rate limit (synced; only surfaces once it's a real constraint) ---
+# --- segment: 7-day rate limit (weekly allowance; bar + %, synced across sessions) ---
 $rl7Seg = ''
 if ($null -ne $rl7Pct -and "$rl7Pct" -ne '') {
   $rp7 = [int][Math]::Round([double]$rl7Pct)
   $rp7 = rl_synced $rp7 $rl7Reset '7d'
-  if ($rp7 -ge 50) {
-    $rl7Seg = "7d $(mk_bar $rp7 6) $rp7%"
-    $ep7 = to_epoch $rl7Reset
-    if ($rp7 -ge 80 -and $null -ne $ep7) { $rl7Seg += " $E[90m⟳ $(fmt_eta $ep7)$RESET" }
-  }
+  $rl7Seg = "7d $(mk_bar $rp7 6) $rp7%"
+  $ep7 = to_epoch $rl7Reset
+  if ($rp7 -ge 80 -and $null -ne $ep7) { $rl7Seg += " $E[90m⟳ $(fmt_eta $ep7)$RESET" }
 }
 
 # --- segment: burn rate ($ per active hour) -------------------------------------------

@@ -332,11 +332,11 @@ if [ -n "$rp" ]; then
   fi
 fi
 
-# --- Segment: 7-day rate limit (shared; only surfaces once it's a real constraint) ---
+# --- Segment: 7-day rate limit (weekly allowance; bar + %, shared across sessions) ---
 rl7_seg=""
 if [ -n "$rl7_pct" ]; then rp7=$(printf "%.0f" "$rl7_pct" 2>/dev/null); else rp7=""; fi
 rp7=$(rl_shared "$rp7" "$rl7_reset" "7d")
-if [ -n "$rp7" ] && [ "$rp7" -ge 50 ] 2>/dev/null; then
+if [ -n "$rp7" ]; then
   rl7_seg="7d $(mk_bar "$rp7" 6) ${rp7}%"
   if [ "$rp7" -ge 80 ] 2>/dev/null; then
     _eta7=$(fmt_eta "$rl7_reset")
