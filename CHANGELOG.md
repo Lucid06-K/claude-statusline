@@ -4,6 +4,19 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.6.0 - 2026-11-01
+
+### Fixed
+- **The context meter now fills to the auto-compact point, not the whole window.** Claude Code's
+  `used_percentage` is measured against the model's full window (1M on the 1M models), but
+  auto-compact fires at the `autoCompactWindow` setting when one is set. With a 400k setting the
+  bar compacted at 40%: it never left green and the `⚠` never showed. The renderer now reads the
+  window the way Claude Code does (`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, then project local, project
+  and user settings, with `modelSettings.<model>.autoCompactWindow` ahead of the top-level key in
+  each file; `400000`, `400k`, `1M` or `400` as shorthand; clamped to 100k-1M) and measures
+  against it. `auto`, no setting, `DISABLE_AUTO_COMPACT` or `DISABLE_COMPACT` keep Claude Code's
+  own percentage. slconfig's preview keeps its fixed sample. Not in the PowerShell port yet.
+
 ## 1.5.1 - 2026-10-31
 
 ### Changed

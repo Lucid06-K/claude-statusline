@@ -23,7 +23,7 @@ input=$(cat)
 US=$'\037'
 IFS="$US" read -r cwd model effort used_pct input_tokens session_cost duration_ms \
   session_id fast_mode rl5_pct rl5_reset rl7_pct rl7_reset output_style tok_in tok_out \
-  thinking_on burn_raw cost_col < <(
+  thinking_on burn_raw cost_col model_id ctx_size project_dir < <(
   printf '%s' "$input" | jq -r '
     def s: if . == null then "" else tostring end;
     def c: s | split("\u001f") | join(" ")
@@ -53,7 +53,10 @@ IFS="$US" read -r cwd model effort used_pct input_tokens session_cost duration_m
       (if   $cost == null then null
        elif $cost >= 5    then 91
        elif $cost >= 2    then 93
-       else                    90 end)
+       else                    90 end),
+      .model.id,
+      .context_window.context_window_size,
+      (.workspace.project_dir // .workspace.current_dir // .cwd)
     ] | map(c) | join("\u001f")' 2>/dev/null)   # malformed stdin -> empty fields, not a
                                                  # jq parse error on the status line's stderr
 
@@ -306,10 +309,68 @@ rl_shared() {                    # $1=pct ("" if absent)  $2=reset_epoch  $3=nam
   [ "$sreset" -gt "$NOW" ] 2>/dev/null && printf '%s' "$spct"
 }
 
+# --- Helper: the auto-compact window, in tokens (empty = the model's whole window) ---
+# Claude Code's used_percentage is measured against context_window_size (1M on the 1M
+# models), but auto-compact fires at the autoCompactWindow setting when one is set: "the
+# actual threshold is the minimum of this setting and your model's maximum context
+# window". Against the whole window a 400k setting compacts at 40%, so the bar never
+# left green and the ⚠ never showed before the context was squeezed.
+# Precedence as in Claude Code: CLAUDE_CODE_AUTO_COMPACT_WINDOW, then the settings files
+# (project local > project > user), where modelSettings.<model>.autoCompactWindow
+# replaces the top-level key within one file. Values: 400000, "400k", "1M", or 400 as
+# shorthand for thousands; clamped to 100k-1M like Claude Code does. "auto" (a window
+# tuned per model, not exposed to the status line) and anything unreadable fall back to
+# the whole window, i.e. Claude Code's own used_percentage.
+compact_window() {
+  case "${DISABLE_AUTO_COMPACT:-}${DISABLE_COMPACT:-}" in ''|0|00) ;; *) return ;; esac
+  local proj="${project_dir:-$cwd}" files=() f
+  for f in "$proj/.claude/settings.local.json" "$proj/.claude/settings.json" \
+           "$HOME/.claude/settings.json"; do
+    [ -f "$f" ] && files+=("$f")
+  done
+  jq -rn --arg env "${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}" --arg model "$model_id" '
+    def key: sub("\\[1m\\]$"; "") | sub("-[0-9]{8}$"; "")
+             | sub("^.*anthropic\\."; "") | sub("-v[0-9]+(:[0-9]+)?$"; "");
+    def tokens:
+      (if type == "number" then .
+       elif type == "string" then
+         (ascii_downcase | gsub("[ ,_]"; "")) as $s
+         | if   ($s | test("^[0-9]+(\\.[0-9]+)?k$")) then ($s[:-1] | tonumber) * 1000
+           elif ($s | test("^[0-9]+(\\.[0-9]+)?m$")) then ($s[:-1] | tonumber) * 1000000
+           elif ($s | test("^[0-9]+$"))              then ($s | tonumber)
+           else null end
+       else null end)
+      | if . == null then null
+        elif . < 1000 then . * 1000
+        else . end
+      | if . == null then null
+        elif . < 100000  then 100000
+        elif . > 1000000 then 1000000
+        else floor end;
+    ($model | key) as $k
+    | [ (if $env == "" then null else $env end),
+        (inputs | (try .modelSettings[$k].autoCompactWindow catch null)
+                  // (try .autoCompactWindow catch null)) ]
+    | map(select(. != null)) | first // empty | tokens // empty
+  ' "${files[@]}" 2>/dev/null
+}
+
 # --- Segment: Context window usage (mini progress bar + percentage) ---
+# 100% = the point where auto-compact fires (see compact_window), so the colours and the
+# ⚠ warn before the squeeze rather than at a fraction of a window it never reaches.
 ctx_seg=""
 if [ -n "$used_pct" ]; then
   printf_pct=$(printf "%.0f" "$used_pct" 2>/dev/null)
+  # slconfig's sample (preview-*) keeps its fixed 88% so the ⚠ is always on show.
+  case "$session_id:$input_tokens" in preview-*|*:|*:*[!0-9]*) ;; *)
+    case "$ctx_size" in ''|*[!0-9]*) ctx_size=0 ;; esac
+    acw=$(compact_window)
+    case "$acw" in ''|*[!0-9]*) ;; *)
+      if [ "$ctx_size" -eq 0 ] || [ "$acw" -lt "$ctx_size" ]; then
+        printf_pct=$(( (input_tokens * 100 + acw / 2) / acw ))
+      fi ;;
+    esac ;;
+  esac
   ctx_seg="${ESC}[90m»«${RESET}$(mk_bar "$printf_pct" 6) ${printf_pct}%"   # »« = compaction (context squeeze)
   # U+FE0E pins ⚠ to its text presentation: without it the glyph is one column to a
   # width calculation but two to a terminal that draws it as an emoji, and the line

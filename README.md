@@ -198,8 +198,8 @@ Toggle any of these in the `slconfig` editor; colours adapt to your terminal.
 | **Thinking off** | `🧠⨯` | only when extended thinking is disabled |
 | **Reasoning effort** | `xhigh` | effort level, coloured like the `/effort` selector |
 | **Output style** | `✎ Explanatory` | only when the output style isn't `default` |
-| **Context meter** | `»«▕█████▒▏ 88%` | context-window fill; bar green → yellow → red |
-| **Context warning** | `⚠` | appended once context ≥85% (near auto-compact) |
+| **Context meter** | `»«▕█████▒▏ 88%` | context used, as a share of the auto-compact point (your `autoCompactWindow` setting, else the model's whole window); bar green → yellow → red |
+| **Context warning** | `⚠` | appended at ≥85% of the auto-compact point |
 | **5-hour limit** | `5h ▕█▒▒▒▒▒▏ 20%` | rolling 5h usage; a `⟳` reset countdown appears at ≥80% |
 | **7-day limit** | `7d ▕██▒▒▒▒▏ 36%` | weekly allowance used (rolling 7 days); `⟳` reset countdown at ≥80% |
 | **Per-model limit** | `Fable ▕██▒▒▒▒▏ 34%` | weekly cap for one model (Fable / Opus / Sonnet); off by default, needs a network call |
