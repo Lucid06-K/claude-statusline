@@ -4,6 +4,15 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.5.1 - 2026-10-31
+
+### Changed
+- **The Remote Control element shows a red `/rc ?` when this session's file is missing.** Those
+  files (`~/.claude/sessions/<pid>.json`) are undocumented, so a Claude Code update could move or
+  rename them; until now that would hide `/rc` exactly as if Remote Control were off. A session
+  whose file is found without a `bridgeSessionId` still shows nothing. slconfig's preview draws a
+  sample green `/rc`, since its fake session has no file.
+
 ## 1.5.0 - 2026-10-31
 
 ### Added

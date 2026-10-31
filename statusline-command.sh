@@ -431,22 +431,31 @@ fi
 # That says Remote Control was set up for the session, not that the link is up this second.
 # The renderer's parent is normally the claude process, so $PPID's file is tried first
 # (builtin read, no fork); only when that misses is the folder grepped for the session id.
+# Those files are undocumented, so when this session's file can't be found at all the
+# element shows a red "/rc ?" instead of vanishing: a Claude update that moves or renames
+# them must not look the same as Remote Control being off.
 rc_seg=""
 if [ "$SL_REMOTE" = 1 ] && [ -n "$session_id" ]; then
-  _sd="${HOME}/.claude/sessions"; _sid_pat="\"sessionId\":\"${session_id}\""; _sj=""
-  { IFS= read -r -d '' _sj < "$_sd/$PPID.json"; } 2>/dev/null
-  case "$_sj" in
-    *"$_sid_pat"*) ;;
-    *) _sf=$(grep -l -F "$_sid_pat" "$_sd"/*.json 2>/dev/null); _sf="${_sf%%$'\n'*}"; _sj=""
-       [ -n "$_sf" ] && { IFS= read -r -d '' _sj < "$_sf"; } 2>/dev/null ;;
-  esac
-  _rc_re='"bridgeSessionId":"(session_[A-Za-z0-9]+)"'
-  case "$_sj" in
-    *"$_sid_pat"*)
-      if [[ $_sj =~ $_rc_re ]]; then
-        # OSC 8 hyperlink around the label; BEL-terminated like Claude Code's own header link.
-        rc_seg="${ESC}]8;;https://claude.ai/code/${BASH_REMATCH[1]}"$'\a'"$(fg_rgb 78 186 101 32)/rc${RESET}${ESC}]8;;"$'\a'
-      fi ;;
+  case "$session_id" in
+    preview-*)   # slconfig's sample render has no session file; show what the element looks like
+      rc_seg="$(fg_rgb 78 186 101 32)/rc${RESET}" ;;
+    *)
+      _sd="${HOME}/.claude/sessions"; _sid_pat="\"sessionId\":\"${session_id}\""; _sj=""
+      { IFS= read -r -d '' _sj < "$_sd/$PPID.json"; } 2>/dev/null
+      case "$_sj" in
+        *"$_sid_pat"*) ;;
+        *) _sf=$(grep -l -F "$_sid_pat" "$_sd"/*.json 2>/dev/null); _sf="${_sf%%$'\n'*}"; _sj=""
+           [ -n "$_sf" ] && { IFS= read -r -d '' _sj < "$_sf"; } 2>/dev/null ;;
+      esac
+      _rc_re='"bridgeSessionId":"(session_[A-Za-z0-9]+)"'
+      case "$_sj" in
+        *"$_sid_pat"*)   # found; no bridgeSessionId means Remote Control is off here: show nothing
+          if [[ $_sj =~ $_rc_re ]]; then
+            # OSC 8 hyperlink around the label; BEL-terminated like Claude Code's own header link.
+            rc_seg="${ESC}]8;;https://claude.ai/code/${BASH_REMATCH[1]}"$'\a'"$(fg_rgb 78 186 101 32)/rc${RESET}${ESC}]8;;"$'\a'
+          fi ;;
+        *) rc_seg="${ESC}[91m/rc ?${RESET}" ;;
+      esac ;;
   esac
 fi
 
