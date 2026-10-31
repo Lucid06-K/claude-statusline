@@ -32,7 +32,7 @@ Everything is colour-coded, and most segments stay hidden until they're relevant
 |---|---|
 | 🎨 **Looks the part** | Truecolor, the model in Claude's brand orange, effort colours matched to Claude Code's own `/effort` selector. |
 | 🧩 **Modes, not fiddling** | Bundle the segments you want into named presets. Set a default for new sessions; switch the current session with `/mode`. |
-| 🎛️ **Fully configurable** | An arrow-key TUI (`slconfig`) toggles 17 elements and builds modes — with a live preview. No file editing. |
+| 🎛️ **Fully configurable** | An arrow-key TUI (`slconfig`) toggles 19 elements and builds modes — with a live preview. No file editing. |
 | 📊 **Surfaces what matters** | Context meter, rolling rate-limit meters, burn rate, cost, tokens — synced across sessions, hidden until they count. |
 | 🪶 **Featherweight** | One small script per render — bash + `jq` on macOS/Linux, dependency-free PowerShell on Windows. No daemon, no `sudo`. |
 | 🪟 **Windows native** | A full PowerShell port in [`windows/`](windows) — same features, same config files, no `jq`, no WSL. |
@@ -203,6 +203,7 @@ Toggle any of these in the `slconfig` editor; colours adapt to your terminal.
 | **5-hour limit** | `5h ▕█▒▒▒▒▒▏ 20%` | rolling 5h usage; a `⟳` reset countdown appears at ≥80% |
 | **7-day limit** | `7d ▕██▒▒▒▒▏ 36%` | weekly allowance used (rolling 7 days); `⟳` reset countdown at ≥80% |
 | **Per-model limit** | `Fable ▕██▒▒▒▒▏ 34%` | weekly cap for one model (Fable / Opus / Sonnet); off by default, needs a network call |
+| **Remote Control** | `/rc` | green while this session has Remote Control; click it to open the session on claude.ai. Shows that Remote Control was started, not whether it is connected right now. Not in the Windows port yet |
 | **Burn rate** | `$11.20/h` | spend per active hour |
 | **Session cost** | `$6.40` | total spent this session |
 | **Cost color** | *(tints `$`)* | dim < \$2 · yellow ≥ \$2 · red ≥ \$5 |

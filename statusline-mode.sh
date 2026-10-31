@@ -13,7 +13,7 @@ GLOBAL="${HOME}/.claude/statusline.conf"
 SESSDIR="${HOME}/.claude/statusline.sessions"
 PICKER="${HOME}/.claude/statusline.picker"   # modes chosen (in slconfig) to show in the /mode picker
 # every element key; keep in step with keys=( ) in statusline-config.sh and the defaults in statusline-command.sh
-KEYS="SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK SL_OUTPUTSTYLE SL_TOKENS SL_THINKING SL_MODEL_LIMIT"
+KEYS="SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK SL_OUTPUTSTYLE SL_TOKENS SL_THINKING SL_MODEL_LIMIT SL_REMOTE"
 sid="${CLAUDE_CODE_SESSION_ID:-}"
 case "$sid" in ''|.|..|*[!A-Za-z0-9._-]*) sid="" ;; esac   # same check as the renderer, so both use one conf path
 

@@ -105,7 +105,7 @@ rainbow_text() {
 SL_DIRECTORY=1; SL_GIT=1; SL_MODEL=1; SL_FASTMODE=1; SL_EFFORT=1
 SL_CONTEXT=1; SL_CONTEXT_WARN=1; SL_RATELIMIT_5H=1; SL_RATELIMIT_7D=1
 SL_BURNRATE=1; SL_COST=1; SL_COST_COLOR=1; SL_ELAPSED=1; SL_CLOCK=1
-SL_OUTPUTSTYLE=1; SL_TOKENS=1; SL_THINKING=1
+SL_OUTPUTSTYLE=1; SL_TOKENS=1; SL_THINKING=1; SL_REMOTE=1
 # Off by default: it is the one element that needs a network call (see statusline-usage.sh).
 SL_MODEL_LIMIT=0
 
@@ -425,6 +425,31 @@ if [ "$SL_ELAPSED" = 1 ] && [ -n "$session_id" ]; then
   fi
 fi
 
+# --- Segment: Remote Control (green /rc, a link to this session on claude.ai) ---
+# The payload has no Remote Control field. Instead, each running session keeps
+# ~/.claude/sessions/<pid>.json, which gains a bridgeSessionId once Remote Control starts.
+# That says Remote Control was set up for the session, not that the link is up this second.
+# The renderer's parent is normally the claude process, so $PPID's file is tried first
+# (builtin read, no fork); only when that misses is the folder grepped for the session id.
+rc_seg=""
+if [ "$SL_REMOTE" = 1 ] && [ -n "$session_id" ]; then
+  _sd="${HOME}/.claude/sessions"; _sid_pat="\"sessionId\":\"${session_id}\""; _sj=""
+  { IFS= read -r -d '' _sj < "$_sd/$PPID.json"; } 2>/dev/null
+  case "$_sj" in
+    *"$_sid_pat"*) ;;
+    *) _sf=$(grep -l -F "$_sid_pat" "$_sd"/*.json 2>/dev/null); _sf="${_sf%%$'\n'*}"; _sj=""
+       [ -n "$_sf" ] && { IFS= read -r -d '' _sj < "$_sf"; } 2>/dev/null ;;
+  esac
+  _rc_re='"bridgeSessionId":"(session_[A-Za-z0-9]+)"'
+  case "$_sj" in
+    *"$_sid_pat"*)
+      if [[ $_sj =~ $_rc_re ]]; then
+        # OSC 8 hyperlink around the label; BEL-terminated like Claude Code's own header link.
+        rc_seg="${ESC}]8;;https://claude.ai/code/${BASH_REMATCH[1]}"$'\a'"$(fg_rgb 78 186 101 32)/rc${RESET}${ESC}]8;;"$'\a'
+      fi ;;
+  esac
+fi
+
 # --- Segment: Current time ---
 time_seg="$CLOCK"
 
@@ -445,6 +470,7 @@ parts=()
 [ "$SL_MODEL_LIMIT"  = 1 ] && [ -n "$mlim_seg"     ] && parts+=("${mlim_seg}")
 [ "$SL_BURNRATE"     = 1 ] && [ -n "$burn_seg"     ] && parts+=("${burn_seg}")
 [ "$SL_COST"         = 1 ] && [ -n "$cost_seg"     ] && parts+=("${cost_seg}")
+[ "$SL_REMOTE"       = 1 ] && [ -n "$rc_seg"       ] && parts+=("${rc_seg}")
 [ "$SL_ELAPSED"      = 1 ] && [ -n "$elapsed_seg"  ] && parts+=("${elapsed_seg}")
 [ "$SL_CLOCK"        = 1 ]                           && parts+=("${time_seg}")
 

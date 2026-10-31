@@ -4,6 +4,24 @@ All notable changes to **claude-statusline**. This project follows
 [Semantic Versioning](https://semver.org) on a single rolling `main` track —
 see [Versioning](README.md#versioning).
 
+## 1.5.0 - 2026-10-31
+
+### Added
+- **Remote Control element** (`SL_REMOTE`, on by default). A green `/rc` while the session has
+  Remote Control, linked to the session on claude.ai, since Claude Code 2.1.316 moved its own
+  `/rc` label up into the header, where it scrolls away. The status-line payload has no Remote
+  Control field, so the renderer reads the `bridgeSessionId` from the session file Claude Code
+  keeps in `~/.claude/sessions/` (its parent's `<pid>.json` first, no fork; a grep for the session
+  id only when that misses). It shows that Remote Control was started, not that the connection
+  is up this second. Added to the `work`, `cost`, `minimal` and `focus` default modes. Not in the
+  PowerShell port yet.
+
+### Upgrading
+- A `statusline.modes` file created before 1.5.0 has no `SL_REMOTE` in its mode lines, so
+  applying one of those modes (slconfig or `/mode`) turns the element off. Add `SL_REMOTE` to the
+  lines you want it in, or switch it on in slconfig. Conf files written before 1.5.0 lack the key
+  and show it until a mode is applied again.
+
 ## 1.4.0 - 2026-10-24
 
 ### Changed

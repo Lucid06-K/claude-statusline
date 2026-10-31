@@ -39,11 +39,11 @@ trap 'cleanup; exit 130' INT TERM
 # key | label | one-line summary | full explanation
 keys=(   SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN \
          SL_RATELIMIT_5H SL_RATELIMIT_7D SL_BURNRATE SL_COST SL_COST_COLOR SL_ELAPSED SL_CLOCK \
-         SL_OUTPUTSTYLE SL_TOKENS SL_THINKING SL_MODEL_LIMIT )
+         SL_OUTPUTSTYLE SL_TOKENS SL_THINKING SL_MODEL_LIMIT SL_REMOTE )
 labels=( "Directory" "Git status" "Model name" "Fast-mode flag" "Reasoning effort" \
          "Context meter" "Context warning" "5-hour limit" "7-day limit" "Burn rate" \
          "Session cost" "Cost color" "Session timer" "Clock" \
-         "Output style" "Tokens" "Thinking off" "Per-model limit" )
+         "Output style" "Tokens" "Thinking off" "Per-model limit" "Remote Control" )
 shorts=( "current folder (📁 ~/…)" \
          "branch, dirty *, ahead/behind ⇡⇣" \
          "model name in Claude orange" \
@@ -61,7 +61,8 @@ shorts=( "current folder (📁 ~/…)" \
          "✎ active output style (not default)" \
          "↓in ↑out tokens this session" \
          "🧠⨯ when extended thinking is off" \
-         "weekly Fable/Opus/Sonnet cap (needs network)" )
+         "weekly Fable/Opus/Sonnet cap (needs network)" \
+         "green /rc link while Remote Control is on" )
 longs=(  "The working directory. Home shows as ~, a folder directly under home as ~/name, and anything deeper as the last two path segments (e.g. Projects/poyona)." \
          "When inside a git repo: the branch, a * if there are uncommitted changes, and ⇡N/⇣N for commits ahead of / behind upstream. Hidden outside repos; turning it off also skips the git calls (slightly faster)." \
          "The active model's display name (e.g. Opus 4.8 (1M context)) in Claude's brand orange." \
@@ -79,7 +80,8 @@ longs=(  "The working directory. Home shows as ~, a folder directly under home a
          "The active output style (e.g. Explanatory, Learning) shown with a ✎. Hidden when it's the default style." \
          "Token counts — ↓ what is in the context window now (cache reads included) and ↑ the last response, abbreviated (k/M)." \
          "A 🧠⨯ shown only when extended thinking is turned off (it's normally on)." \
-         "Your weekly per-model cap (the \"Current week (Fable 5)\" row from /usage) as a bar + %. Claude Code does not put these in the status line payload (it sends only the 5-hour and 7-day windows), so statusline-usage.sh fetches them from the same endpoint /usage uses, at most once every 5 minutes, and caches the result. This is the only element that makes a network call; leave it off if you would rather the status line never touch the network. Nothing shows until the first successful fetch." )
+         "Your weekly per-model cap (the \"Current week (Fable 5)\" row from /usage) as a bar + %. Claude Code does not put these in the status line payload (it sends only the 5-hour and 7-day windows), so statusline-usage.sh fetches them from the same endpoint /usage uses, at most once every 5 minutes, and caches the result. This is the only element that makes a network call; leave it off if you would rather the status line never touch the network. Nothing shows until the first successful fetch." \
+         "A green /rc while this session has Remote Control, the same label Claude Code puts in its header. Cmd-click it to open the session on claude.ai. Claude Code does not put Remote Control in the status line payload, so this reads the session file Claude Code keeps in ~/.claude/sessions: it shows that Remote Control was started for the session, not whether the connection is up this second (type /rc to reconnect). Not in the Windows port yet." )
 
 n=${#keys[@]}
 tmp_state=(); ED=(); CURRENT_MODE=""; EDNAME=""; EDDESC=""
@@ -147,10 +149,10 @@ seed_modes() {
 # Claude Code status line — modes (presets). Managed via the configurator menu.
 # format:  name|description|ON-keys (space separated; ALL = everything, NONE = nothing)
 full|Everything on|ALL
-work|Coding essentials — path, git, model, effort, context|SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_CLOCK
-cost|Watch spend & rate limits|SL_DIRECTORY SL_MODEL SL_RATELIMIT_5H SL_RATELIMIT_7D SL_MODEL_LIMIT SL_BURNRATE SL_COST SL_COST_COLOR SL_CLOCK
-minimal|Path, git, model, clock|SL_DIRECTORY SL_GIT SL_MODEL SL_CLOCK
-focus|Just enough to stay oriented|SL_DIRECTORY SL_MODEL SL_EFFORT
+work|Coding essentials — path, git, model, effort, context|SL_DIRECTORY SL_GIT SL_MODEL SL_FASTMODE SL_EFFORT SL_CONTEXT SL_CONTEXT_WARN SL_CLOCK SL_REMOTE
+cost|Watch spend & rate limits|SL_DIRECTORY SL_MODEL SL_RATELIMIT_5H SL_RATELIMIT_7D SL_MODEL_LIMIT SL_BURNRATE SL_COST SL_COST_COLOR SL_CLOCK SL_REMOTE
+minimal|Path, git, model, clock|SL_DIRECTORY SL_GIT SL_MODEL SL_CLOCK SL_REMOTE
+focus|Just enough to stay oriented|SL_DIRECTORY SL_MODEL SL_EFFORT SL_REMOTE
 zen|Nothing — a clean, empty line|NONE
 EOF
 }
